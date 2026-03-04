@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { META_PLACEMENTS } from "@/data/placements.config";
 
 export default function Home() {
     const [jobId, setJobId] = useState<string | null>(null);
@@ -29,22 +31,24 @@ export default function Home() {
     const [useSeedsAsInspiration, setUseSeedsAsInspiration] = useState(true);
     const [imageText, setImageText] = useState("Get Protected Today");
 
-    // Placements (Simplification: Just building 2 fixed ones for V1 UI prototype to prove the array works)
-    const [includeMeta, setIncludeMeta] = useState(true);
-    const [includeTiktok, setIncludeTiktok] = useState(true);
+    // Placements
+    const [selectedPlacements, setSelectedPlacements] = useState<string[]>(["meta_feed_1_1"]);
 
     const handleGenerate = async () => {
         setLoading(true);
         setJobId(null);
         setResults([]);
 
-        const target_placements = [];
-        if (includeMeta) {
-            target_placements.push({ platform: "Meta", placement: "Feed", aspect_ratio: "1:1", format_type: "static_image" });
-        }
-        if (includeTiktok) {
-            target_placements.push({ platform: "TikTok", placement: "In-Feed Video", aspect_ratio: "9:16", format_type: "video_placeholder" });
-        }
+        const target_placements = selectedPlacements.map(id => {
+            const spec = META_PLACEMENTS.find(p => p.id === id);
+            return spec ? {
+                id: spec.id,
+                platform: spec.platform,
+                placement: spec.placement,
+                aspect_ratio: spec.aspect_ratio,
+                format_type: spec.format_type
+            } : null;
+        }).filter(Boolean);
 
         const payload = {
             project_context: {
@@ -170,14 +174,27 @@ export default function Home() {
                         <Card>
                             <CardHeader><CardTitle>4. Target Placements</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="flex items-center space-x-2">
-                                    <Switch checked={includeMeta} onCheckedChange={setIncludeMeta} />
-                                    <Label>Meta Feed (1:1 Ratio)</Label>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    <Switch checked={includeTiktok} onCheckedChange={setIncludeTiktok} />
-                                    <Label>TikTok In-Feed (9:16 Ratio)</Label>
-                                </div>
+                                {META_PLACEMENTS.map(placement => (
+                                    <div key={placement.id} className="flex items-start space-x-3 p-2 hover:bg-gray-100 rounded-md transition-colors">
+                                        <Checkbox
+                                            id={placement.id}
+                                            checked={selectedPlacements.includes(placement.id)}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedPlacements([...selectedPlacements, placement.id]);
+                                                } else {
+                                                    setSelectedPlacements(selectedPlacements.filter(id => id !== placement.id));
+                                                }
+                                            }}
+                                        />
+                                        <div className="space-y-1 leading-none">
+                                            <Label htmlFor={placement.id} className="font-bold cursor-pointer">
+                                                {placement.platform} - {placement.placement} ({placement.aspect_ratio})
+                                            </Label>
+                                            <p className="text-xs text-gray-500">{placement.description}</p>
+                                        </div>
+                                    </div>
+                                ))}
                             </CardContent>
                         </Card>
 
