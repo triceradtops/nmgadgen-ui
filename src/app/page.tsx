@@ -1,65 +1,235 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    const [jobId, setJobId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+    const [results, setResults] = useState<any[]>([]);
+
+    // Core Context State
+    const [campaignGoal, setCampaignGoal] = useState("Drive auto insurance quotes");
+    const [productSummary, setProductSummary] = useState("Auto insurance with No Pay protection.");
+    const [targetAudience, setTargetAudience] = useState("Drivers looking to save money");
+
+    // Arrays
+    const [constraints, setConstraints] = useState("Keep copy under 50 words\nTone should be energetic");
+    const [compliance, setCompliance] = useState("No use of City/State flags\nNO rates advertised under $30/month");
+    const [imageUrls, setImageUrls] = useState("https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=800&q=80");
+
+    // Seeds & Copies
+    const [seedHeadline, setSeedHeadline] = useState("");
+    const [seedBody, setSeedBody] = useState("");
+    const [useSeedsAsInspiration, setUseSeedsAsInspiration] = useState(true);
+    const [imageText, setImageText] = useState("Get Protected Today");
+
+    // Placements (Simplification: Just building 2 fixed ones for V1 UI prototype to prove the array works)
+    const [includeMeta, setIncludeMeta] = useState(true);
+    const [includeTiktok, setIncludeTiktok] = useState(true);
+
+    const handleGenerate = async () => {
+        setLoading(true);
+        setJobId(null);
+        setResults([]);
+
+        const target_placements = [];
+        if (includeMeta) {
+            target_placements.push({ platform: "Meta", placement: "Feed", aspect_ratio: "1:1", format_type: "static_image" });
+        }
+        if (includeTiktok) {
+            target_placements.push({ platform: "TikTok", placement: "In-Feed Video", aspect_ratio: "9:16", format_type: "video_placeholder" });
+        }
+
+        const payload = {
+            project_context: {
+                campaign_goal: campaignGoal,
+                product_service_summary: productSummary,
+                target_audience: targetAudience,
+                user_constraints: constraints.split("\n").filter(c => c.trim() !== ""),
+                compliance_guidelines: compliance.split("\n").filter(c => c.trim() !== ""),
+                reference_image_urls: imageUrls.split("\n").filter(c => c.trim() !== ""),
+                seed_headline: seedHeadline || undefined,
+                seed_body_copy: seedBody || undefined,
+            },
+            config: {
+                target_placements: target_placements,
+                use_seeds_as_inspiration: useSeedsAsInspiration,
+                desired_output_type: "static_image_with_text",
+                style_template: "professional_modern",
+                image_copy: imageText ? { text: imageText, style_prompt: "bold sans-serif font" } : undefined
+            }
+        };
+
+        try {
+            // We will send this to our local Next.js API Route to securely attach the API Key!
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (data.job_id) {
+                setJobId(data.job_id);
+                pollResults(data.job_id);
+            } else {
+                alert("Failed to start job: " + JSON.stringify(data));
+                setLoading(false);
+            }
+        } catch (e) {
+            alert("Error submitting job.");
+            setLoading(false);
+        }
+    };
+
+    const pollResults = async (id: string) => {
+        const interval = setInterval(async () => {
+            try {
+                const res = await fetch(`/api/generate?job_id=${id}`);
+                if (res.status === 200) {
+                    const data = await res.json();
+                    setResults(data.ads_generated);
+                    setLoading(false);
+                    clearInterval(interval);
+                } else if (res.status !== 404) {
+                    // If it's a 400 or 500
+                    const err = await res.json();
+                    alert("Job Failed: " + JSON.stringify(err));
+                    setLoading(false);
+                    clearInterval(interval);
+                }
+            } catch (e) {
+                // Keep polling
+            }
+        }, 5000);
+    };
+
+    return (
+        <div className="min-h-screen bg-gray-50 p-8 font-sans">
+            <div className="max-w-5xl mx-auto space-y-8">
+                <div>
+                    <h1 className="text-4xl font-black tracking-tight text-gray-900">CreativeBox</h1>
+                    <p className="text-gray-500 mt-2">Omni-Channel Generative Ad Engine</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+                    {/* LEFT COLUMN: Input Form */}
+                    <div className="space-y-6">
+                        <Card>
+                            <CardHeader><CardTitle>1. Campaign Context</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2"><Label>Campaign Goal</Label><Input value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
+                                <div className="space-y-2"><Label>Product Summary</Label><Input value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
+                                <div className="space-y-2"><Label>Target Audience</Label><Input value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle>2. Advanced Constraints</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>General Rules (One per line)</Label>
+                                    <Textarea value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Compliance Guidelines (Zero Tolerance)</Label>
+                                    <Textarea value={compliance} onChange={e => setCompliance(e.target.value)} rows={3} />
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle>3. Assets & Seeds</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Image-to-Image Seeds (URLs)</Label>
+                                    <Input value={imageUrls} onChange={e => setImageUrls(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Exact Image Text Overlay</Label>
+                                    <Input value={imageText} onChange={e => setImageText(e.target.value)} />
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 pt-2">
+                                    <div className="space-y-2"><Label>Seed Headline</Label><Input value={seedHeadline} placeholder="Leave blank to generate..." onChange={e => setSeedHeadline(e.target.value)} /></div>
+                                    <div className="space-y-2"><Label>Seed Body</Label><Input value={seedBody} placeholder="Leave blank to generate..." onChange={e => setSeedBody(e.target.value)} /></div>
+                                </div>
+                                <div className="flex items-center space-x-2 pt-2">
+                                    <Switch checked={useSeedsAsInspiration} onCheckedChange={setUseSeedsAsInspiration} />
+                                    <Label>Use text seeds merely as inspiration (Rewrite)</Label>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader><CardTitle>4. Target Placements</CardTitle></CardHeader>
+                            <CardContent className="space-y-4">
+                                <div className="flex items-center space-x-2">
+                                    <Switch checked={includeMeta} onCheckedChange={setIncludeMeta} />
+                                    <Label>Meta Feed (1:1 Ratio)</Label>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                    <Switch checked={includeTiktok} onCheckedChange={setIncludeTiktok} />
+                                    <Label>TikTok In-Feed (9:16 Ratio)</Label>
+                                </div>
+                            </CardContent>
+                        </Card>
+
+                        <Button onClick={handleGenerate} disabled={loading} className="w-full h-12 text-lg font-bold">
+                            {loading ? "Generating Payload..." : "Generate Creatives"}
+                        </Button>
+                    </div>
+
+                    {/* RIGHT COLUMN: Output/Results */}
+                    <div className="space-y-6">
+                        <Card className="h-full bg-gray-900 border-none text-white">
+                            <CardHeader><CardTitle>Live Preview</CardTitle></CardHeader>
+                            <CardContent>
+                                {loading && (
+                                    <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
+                                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                        <p className="text-gray-400 font-mono">Job {jobId} Queued...</p>
+                                        <p className="text-xs text-indigo-400">Generative AI is crafting your visuals.</p>
+                                    </div>
+                                )}
+
+                                {!loading && results.length === 0 && (
+                                    <div className="text-center text-gray-500 py-12">
+                                        Ready to generate. Configure parameters on the left.
+                                    </div>
+                                )}
+
+                                <div className="space-y-8">
+                                    {results.map((ad, idx) => (
+                                        <div key={idx} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">
+                                                    {ad.placement_metadata?.platform} {ad.placement_metadata?.form}
+                                                </span>
+                                                <span className="text-gray-400 text-xs">{ad.placement_metadata?.aspect_ratio}</span>
+                                            </div>
+
+                                            <img src={ad.media_url} className="w-full rounded-lg mb-4 object-cover" />
+
+                                            <div className="space-y-2">
+                                                <h3 className="font-bold text-lg leading-tight">{ad.headline}</h3>
+                                                <p className="text-gray-300 text-sm leading-relaxed">{ad.body_copy}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+
+                </div>
+            </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+    );
 }
