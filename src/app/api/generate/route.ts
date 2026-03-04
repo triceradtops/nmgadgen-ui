@@ -10,7 +10,7 @@ export async function POST(request: Request) {
             headers: {
                 "Content-Type": "application/json",
                 // Inject the secret key here!
-                "X-API-KEY": process.env.CREATIVEBOX_API_KEY || "ThiCcp69wPNwi@E-hxaEBbFCq"
+                "X-API-KEY": process.env.NMG_AD_GEN || "ThiCcp69wPNwi@E-hxaEBbFCq"
             },
             body: JSON.stringify(body),
         });
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
             method: "GET",
             headers: {
                 // Inject the secret key for polling
-                "X-API-KEY": process.env.CREATIVEBOX_API_KEY || "ThiCcp69wPNwi@E-hxaEBbFCq"
+                "X-API-KEY": process.env.NMG_AD_GEN || "ThiCcp69wPNwi@E-hxaEBbFCq"
             }
         });
 
