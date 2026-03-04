@@ -13,6 +13,7 @@ import { META_PLACEMENTS } from "@/data/placements.config";
 export default function Home() {
     const [jobId, setJobId] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+    const [uploadingImage, setUploadingImage] = useState(false);
     const [results, setResults] = useState<any[]>([]);
 
     // Core Context State
@@ -30,6 +31,34 @@ export default function Home() {
     const [seedBody, setSeedBody] = useState("");
     const [useSeedsAsInspiration, setUseSeedsAsInspiration] = useState(true);
     const [imageText, setImageText] = useState("Get Protected Today");
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+
+        setUploadingImage(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json();
+            if (res.ok && data.url) {
+                // Append the URL to the existing comma/newline separated list
+                setImageUrls(prev => prev.trim() ? prev + "\n" + data.url : data.url);
+            } else {
+                alert("Upload failed: " + JSON.stringify(data));
+            }
+        } catch (error) {
+            alert("Error uploading image");
+        } finally {
+            setUploadingImage(false);
+            e.target.value = ""; // Clear input so they can upload the same file again if they want
+        }
+    };
 
     // Placements
     const [selectedPlacements, setSelectedPlacements] = useState<string[]>(["meta_feed_1_1"]);
@@ -154,7 +183,18 @@ export default function Home() {
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label>Image-to-Image Seeds (URLs)</Label>
-                                    <Input value={imageUrls} onChange={e => setImageUrls(e.target.value)} />
+                                    <Textarea value={imageUrls} onChange={e => setImageUrls(e.target.value)} rows={3} placeholder="Paste public image URLs here..." />
+                                </div>
+                                <div className="space-y-2 p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300">
+                                    <Label className="block text-sm font-semibold mb-2 text-gray-700">Upload Local File (Auto-hosted)</Label>
+                                    <Input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={handleImageUpload}
+                                        disabled={uploadingImage}
+                                        className="bg-white"
+                                    />
+                                    {uploadingImage && <p className="text-sm font-semibold text-indigo-500 mt-2">Uploading to Cloud Storage...</p>}
                                 </div>
                                 <div className="space-y-2">
                                     <Label>Exact Image Text Overlay</Label>
