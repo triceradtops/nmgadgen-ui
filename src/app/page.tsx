@@ -18,6 +18,7 @@ export default function Home() {
 
     // Core Context State
     const [campaignGoal, setCampaignGoal] = useState("");
+    const [campaignVertical, setCampaignVertical] = useState("");
     const [productSummary, setProductSummary] = useState("");
     const [targetAudience, setTargetAudience] = useState("");
 
@@ -82,6 +83,7 @@ export default function Home() {
         const payload = {
             project_context: {
                 campaign_goal: campaignGoal,
+                campaign_vertical: campaignVertical || undefined,
                 product_service_summary: productSummary,
                 target_audience: targetAudience,
                 user_constraints: constraints.split("\n").filter(c => c.trim() !== ""),
@@ -159,6 +161,17 @@ export default function Home() {
                             <CardHeader><CardTitle>1. Campaign Context</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2"><Label>Campaign Goal</Label><Input value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
+                                <div className="space-y-2">
+                                    <Label>Campaign Vertical</Label>
+                                    <select
+                                        value={campaignVertical}
+                                        onChange={e => setCampaignVertical(e.target.value)}
+                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                    >
+                                        <option value="">General / Global Rules</option>
+                                        <option value="auto_insurance">Auto Insurance</option>
+                                    </select>
+                                </div>
                                 <div className="space-y-2"><Label>Product Summary</Label><Input value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
                                 <div className="space-y-2"><Label>Target Audience</Label><Input value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
                             </CardContent>
