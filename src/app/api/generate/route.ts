@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 // This runs securely on the Node.js server, never in the browser!
 export async function POST(request: Request) {
     try {
+        const accessCode = request.headers.get("x-access-code");
+        if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "nmg_super_secret_2026")) {
+            return NextResponse.json({ error: "Unauthorized. Invalid Access Code." }, { status: 401 });
+        }
+
         const body = await request.json();
 
         const response = await fetch("https://web-production-1f2e2.up.railway.app/api/generate", {
@@ -24,6 +29,11 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
+    const accessCode = request.headers.get("x-access-code");
+    if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "nmg_super_secret_2026")) {
+        return NextResponse.json({ error: "Unauthorized. Invalid Access Code." }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const jobId = searchParams.get('job_id');
 

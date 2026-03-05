@@ -16,6 +16,9 @@ export default function Home() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [results, setResults] = useState<any[]>([]);
 
+    // Security
+    const [accessCode, setAccessCode] = useState("");
+
     // Core Context State
     const [campaignGoal, setCampaignGoal] = useState("");
     const [campaignVertical, setCampaignVertical] = useState("");
@@ -44,6 +47,7 @@ export default function Home() {
         try {
             const res = await fetch("/api/upload", {
                 method: "POST",
+                headers: { "x-access-code": accessCode },
                 body: formData,
             });
             const data = await res.json();
@@ -105,7 +109,10 @@ export default function Home() {
             // We will send this to our local Next.js API Route to securely attach the API Key!
             const res = await fetch("/api/generate", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-access-code": accessCode
+                },
                 body: JSON.stringify(payload),
             });
 
@@ -126,7 +133,9 @@ export default function Home() {
     const pollResults = async (id: string) => {
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`/api/generate?job_id=${id}`);
+                const res = await fetch(`/api/generate?job_id=${id}`, {
+                    headers: { "x-access-code": accessCode }
+                });
                 if (res.status === 200) {
                     const data = await res.json();
                     setResults(data.ads_generated);
@@ -157,6 +166,25 @@ export default function Home() {
 
                     {/* LEFT COLUMN: Input Form */}
                     <div className="space-y-6">
+                        <Card className="border-red-200 shadow-sm">
+                            <CardHeader className="bg-red-50 text-red-900 rounded-t-lg pb-4 border-b border-red-100">
+                                <CardTitle className="text-lg">Security Clearance</CardTitle>
+                            </CardHeader>
+                            <CardContent className="pt-4">
+                                <div className="space-y-2">
+                                    <Label className="font-bold text-gray-700">Team Access Code</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="Enter the master access code to generate..."
+                                        value={accessCode}
+                                        onChange={e => setAccessCode(e.target.value)}
+                                        className="border-red-200 focus:ring-red-500"
+                                    />
+                                    <p className="text-xs text-gray-500">Required. Unauthorized generations will be rejected.</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         <Card>
                             <CardHeader><CardTitle>1. Campaign Context</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
