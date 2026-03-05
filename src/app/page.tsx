@@ -17,20 +17,20 @@ export default function Home() {
     const [results, setResults] = useState<any[]>([]);
 
     // Core Context State
-    const [campaignGoal, setCampaignGoal] = useState("Drive auto insurance quotes");
-    const [productSummary, setProductSummary] = useState("Auto insurance with No Pay protection.");
-    const [targetAudience, setTargetAudience] = useState("Drivers looking to save money");
+    const [campaignGoal, setCampaignGoal] = useState("");
+    const [productSummary, setProductSummary] = useState("");
+    const [targetAudience, setTargetAudience] = useState("");
 
     // Arrays
-    const [constraints, setConstraints] = useState("Keep copy under 50 words\nTone should be energetic");
-    const [compliance, setCompliance] = useState("No use of City/State flags\nNO rates advertised under $30/month");
-    const [imageUrls, setImageUrls] = useState("https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=800&q=80");
+    const [constraints, setConstraints] = useState("");
+    const [compliance, setCompliance] = useState("");
+    const [imageUrls, setImageUrls] = useState("");
 
     // Seeds & Copies
     const [seedHeadline, setSeedHeadline] = useState("");
     const [seedBody, setSeedBody] = useState("");
     const [useSeedsAsInspiration, setUseSeedsAsInspiration] = useState(true);
-    const [imageText, setImageText] = useState("Get Protected Today");
+    const [imageText, setImageText] = useState("");
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
