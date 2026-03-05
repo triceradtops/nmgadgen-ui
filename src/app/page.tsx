@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RefreshCw } from "lucide-react";
 import { META_PLACEMENTS } from "@/data/placements.config";
 
 export default function Home() {
@@ -126,6 +127,66 @@ export default function Home() {
             }
         } catch (e) {
             alert("Error submitting job.");
+            setLoading(false);
+        }
+    };
+
+    const handleRegenerateSingle = async (placementId: string) => {
+        if (!placementId) return;
+        setLoading(true);
+        setJobId(null);
+        setResults([]);
+
+        const spec = META_PLACEMENTS.find(p => p.id === placementId);
+        const target_placements = spec ? [{
+            id: spec.id,
+            platform: spec.platform,
+            placement: spec.placement,
+            aspect_ratio: spec.aspect_ratio,
+            format_type: spec.format_type
+        }] : [];
+
+        const payload = {
+            project_context: {
+                campaign_goal: campaignGoal,
+                campaign_vertical: campaignVertical || undefined,
+                product_service_summary: productSummary,
+                target_audience: targetAudience,
+                user_constraints: constraints.split("\n").filter(c => c.trim() !== ""),
+                compliance_guidelines: compliance.split("\n").filter(c => c.trim() !== ""),
+                reference_image_urls: imageUrls.split("\n").filter(c => c.trim() !== ""),
+                seed_headline: seedHeadline || undefined,
+                seed_body_copy: seedBody || undefined,
+            },
+            config: {
+                target_placements: target_placements,
+                use_seeds_as_inspiration: useSeedsAsInspiration,
+                desired_output_type: "static_image_with_text",
+                style_template: "professional_modern",
+                image_copy: imageText ? { text: imageText, style_prompt: "bold sans-serif font" } : undefined
+            }
+        };
+
+        try {
+            const res = await fetch("/api/generate", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-access-code": accessCode
+                },
+                body: JSON.stringify(payload),
+            });
+
+            const data = await res.json();
+            if (data.job_id) {
+                setJobId(data.job_id);
+                pollResults(data.job_id);
+            } else {
+                alert("Failed to start single job: " + JSON.stringify(data));
+                setLoading(false);
+            }
+        } catch (e) {
+            alert("Error submitting single job.");
             setLoading(false);
         }
     };
@@ -307,10 +368,21 @@ export default function Home() {
                                     {results.map((ad, idx) => (
                                         <div key={idx} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
                                             <div className="flex justify-between items-center mb-4">
-                                                <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider">
-                                                    {ad.placement_metadata?.platform} {ad.placement_metadata?.form}
-                                                </span>
-                                                <span className="text-gray-400 text-xs">{ad.placement_metadata?.aspect_ratio}</span>
+                                                <div className="flex items-center space-x-3">
+                                                    <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider shadow-sm">
+                                                        {ad.placement_metadata?.platform} {ad.placement_metadata?.placement || ad.placement_metadata?.form}
+                                                    </span>
+                                                    {ad.placement_metadata?.id && (
+                                                        <button
+                                                            onClick={() => handleRegenerateSingle(ad.placement_metadata.id)}
+                                                            className="p-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-gray-300 hover:text-white transition-all flex items-center justify-center cursor-pointer shadow-sm"
+                                                            title="Re-run generation for this placement only"
+                                                        >
+                                                            <RefreshCw size={14} />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                                <span className="text-gray-400 text-xs font-mono bg-gray-900 px-2 py-1 rounded">{ad.placement_metadata?.aspect_ratio}</span>
                                             </div>
 
                                             <img src={ad.media_url} className="w-full rounded-lg mb-4 object-cover" />
