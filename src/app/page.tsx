@@ -259,6 +259,7 @@ export default function Home() {
                                     >
                                         <option value="">General / Global Rules</option>
                                         <option value="auto_insurance">Auto Insurance</option>
+                                        <option value="weight_loss">Weight Loss</option>
                                     </select>
                                 </div>
                                 <div className="space-y-2"><Label>Product Summary</Label><Input value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
