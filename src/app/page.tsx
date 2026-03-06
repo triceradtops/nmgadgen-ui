@@ -19,6 +19,16 @@ export default function Home() {
     const [uploadingImage, setUploadingImage] = useState(false);
     const [results, setResults] = useState<any[]>([]);
 
+    // Config Tabs
+    const [configMode, setConfigMode] = useState<"chat" | "manual">("chat");
+
+    // Chat State
+    const [chatHistory, setChatHistory] = useState<{ role: string; content: string; image_url?: string }[]>([
+        { role: "assistant", content: "> TERMINAL ONLINE. Awaiting generation intent. Describe your target campaign or upload seed images." }
+    ]);
+    const [chatInput, setChatInput] = useState("");
+    const [parsingConfig, setParsingConfig] = useState(false);
+
     // Layout
     const [isConfigOpen, setIsConfigOpen] = useState(true);
     const [terminalLogs, setTerminalLogs] = useState<string[]>(["[SYSTEM] CreativeBox Initialized..."]);
@@ -147,6 +157,70 @@ export default function Home() {
             appendLog(`CRITICAL ERROR: Network failure submitting job.`);
             alert("Error submitting job.");
             setLoading(false);
+        }
+    };
+
+    const handleChatSubmit = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!chatInput.trim() || parsingConfig) return;
+
+        appendLog(`Sent prompt to Natural Language Parser: "${chatInput.substring(0, 30)}..."`);
+        const userMsg = { role: "user", content: chatInput };
+        const newHistory = [...chatHistory, userMsg];
+
+        setChatHistory(newHistory);
+        setChatInput("");
+        setParsingConfig(true);
+
+        try {
+            const res = await fetch("/api/parse-config", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-access-code": accessCode
+                },
+                body: JSON.stringify({ history: newHistory }),
+            });
+
+            if (!res.ok) {
+                appendLog("ERROR: Parsing failed.");
+                setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: System failed to parse configuration intent." }]);
+                return;
+            }
+
+            const data = await res.json();
+
+            // Map parsed JSON into our manual form states
+            if (data.project_context) {
+                if (data.project_context.campaign_goal) setCampaignGoal(data.project_context.campaign_goal);
+                if (data.project_context.campaign_vertical) setCampaignVertical(data.project_context.campaign_vertical);
+                if (data.project_context.product_service_summary) setProductSummary(data.project_context.product_service_summary);
+                if (data.project_context.target_audience) setTargetAudience(data.project_context.target_audience);
+                if (data.project_context.user_constraints) setConstraints(data.project_context.user_constraints.join("\n"));
+                if (data.project_context.reference_image_urls) setImageUrls(data.project_context.reference_image_urls.join("\n"));
+                if (data.project_context.seed_headline) setSeedHeadline(data.project_context.seed_headline);
+                if (data.project_context.seed_body_copy) setSeedBody(data.project_context.seed_body_copy);
+            }
+
+            if (data.config && data.config.target_placements) {
+                const placementIds = data.config.target_placements.map((p: any) => {
+                    const specRow = META_PLACEMENTS.find(m => m.platform === p.platform && m.aspect_ratio === p.aspect_ratio);
+                    return specRow ? specRow.id : null;
+                }).filter(Boolean);
+
+                if (placementIds.length > 0) {
+                    setSelectedPlacements(placementIds);
+                }
+            }
+
+            appendLog(`Parser success. Automatically mapped context constraints.`);
+            setChatHistory(prev => [...prev, { role: "assistant", content: data.system_reply }]);
+
+        } catch (error) {
+            appendLog("ERROR: Parsing network failure.");
+            setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: Network failure parsing intent." }]);
+        } finally {
+            setParsingConfig(false);
         }
     };
 
@@ -287,103 +361,150 @@ export default function Home() {
                             </CardContent>
                         </Card>
 
-                        <Card className="bg-black border-gray-800 shadow-sm">
-                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">1. Campaign Context</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Campaign Goal</Label><Input className="bg-[#111] border-gray-800 text-white" value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-400 font-mono text-xs uppercase">Campaign Vertical</Label>
-                                    <select
-                                        value={campaignVertical}
-                                        onChange={e => setCampaignVertical(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-gray-800 bg-[#111] text-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                                    >
-                                        <option value="">General / Global Rules</option>
-                                        <option value="auto_insurance">Auto Insurance</option>
-                                        <option value="weight_loss">Weight Loss</option>
-                                    </select>
+                        {configMode === "chat" ? (
+                            <div className="flex flex-col h-[600px] border border-gray-800 rounded-lg overflow-hidden bg-black">
+                                <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-800">
+                                    {chatHistory.map((msg, idx) => (
+                                        <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                            <div className={`max-w-[85%] rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30' : 'bg-gray-900/80 text-gray-300 border border-gray-800'}`}>
+                                                {msg.role === 'assistant' && <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest block mb-1">CreativeBox_AI</span>}
+                                                {msg.role === 'user' && <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block mb-1 text-right">User</span>}
+                                                <p className="whitespace-pre-wrap">{msg.content}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {parsingConfig && (
+                                        <div className="flex justify-start">
+                                            <div className="bg-gray-900/80 border border-gray-800 rounded-lg p-3 text-sm text-gray-500 animate-pulse font-mono">
+                                                &gt; PARSING INTENT... mapping configuration...
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Product Summary</Label><Input className="bg-[#111] border-gray-800 text-white" value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
-                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Target Audience</Label><Input className="bg-[#111] border-gray-800 text-white" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-black border-gray-800 shadow-sm">
-                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">2. Advanced Constraints</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-gray-400 font-mono text-xs uppercase">General Rules (One per line)</Label>
-                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-400 font-mono text-xs uppercase">Compliance Guidelines (Zero Tolerance)</Label>
-                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={compliance} onChange={e => setCompliance(e.target.value)} rows={3} />
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-black border-gray-800 shadow-sm">
-                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">3. Assets & Seeds</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-gray-400 font-mono text-xs uppercase">Image-to-Image Seeds (URLs)</Label>
-                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={imageUrls} onChange={e => setImageUrls(e.target.value)} rows={3} placeholder="Paste public image URLs here..." />
-                                </div>
-                                <div className="space-y-2 p-4 bg-[#111] rounded-lg border border-dashed border-gray-800">
-                                    <Label className="block text-xs uppercase font-mono mb-2 text-gray-400">Upload Local File (Auto-hosted)</Label>
-                                    <Input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        disabled={uploadingImage}
-                                        className="bg-black border-gray-800 text-gray-300 file:text-indigo-400 file:bg-gray-900 file:border-none hover:file:bg-gray-800 cursor-pointer"
-                                    />
-                                    {uploadingImage && <p className="text-xs font-mono text-indigo-400 mt-2 animate-pulse">&gt; Uploading to Cloud Storage...</p>}
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-gray-400 font-mono text-xs uppercase">Exact Image Text Overlay</Label>
-                                    <Input className="bg-[#111] border-gray-800 text-white" value={imageText} onChange={e => setImageText(e.target.value)} />
-                                </div>
-                                <div className="grid grid-cols-2 gap-4 pt-2">
-                                    <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Headline</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedHeadline} placeholder="Leave blank to generate..." onChange={e => setSeedHeadline(e.target.value)} /></div>
-                                    <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Body</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedBody} placeholder="Leave blank to generate..." onChange={e => setSeedBody(e.target.value)} /></div>
-                                </div>
-                                <div className="flex items-center space-x-2 pt-2">
-                                    <Switch checked={useSeedsAsInspiration} onCheckedChange={setUseSeedsAsInspiration} />
-                                    <Label className="text-gray-400 font-mono text-xs">Use text seeds merely as inspiration (Rewrite)</Label>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        <Card className="bg-black border-gray-800 shadow-sm">
-                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">4. Target Placements</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                                {META_PLACEMENTS.map(placement => (
-                                    <div key={placement.id} className="flex items-start space-x-3 p-2 hover:bg-[#111] rounded-md transition-colors border border-transparent hover:border-gray-800">
-                                        <Checkbox
-                                            id={placement.id}
-                                            checked={selectedPlacements.includes(placement.id)}
-                                            onCheckedChange={(checked) => {
-                                                if (checked) {
-                                                    setSelectedPlacements([...selectedPlacements, placement.id]);
-                                                } else {
-                                                    setSelectedPlacements(selectedPlacements.filter(id => id !== placement.id));
+                                <div className="p-3 border-t border-gray-800 bg-[#111]">
+                                    <form onSubmit={handleChatSubmit} className="flex gap-2 relative">
+                                        <Textarea
+                                            value={chatInput}
+                                            onChange={e => setChatInput(e.target.value)}
+                                            placeholder="Type your prompt... e.g. 'Make a 4:5 auto insurance ad for parents'"
+                                            className="bg-black border-gray-800 text-white text-sm resize-none pr-12 font-mono scrollbar-thin h-[60px]"
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleChatSubmit(e as any);
                                                 }
                                             }}
-                                            className="border-gray-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                                         />
-                                        <div className="space-y-1 leading-none mt-0.5">
-                                            <Label htmlFor={placement.id} className="font-bold cursor-pointer text-gray-200">
-                                                {placement.platform} - {placement.placement} <span className="text-indigo-400 font-mono">({placement.aspect_ratio})</span>
-                                            </Label>
-                                            <p className="text-xs text-gray-500 leading-relaxed font-mono mt-1">{placement.description}</p>
+                                        <div className="absolute right-2 top-2">
+                                            <Button type="submit" disabled={parsingConfig || !chatInput.trim()} size="sm" className="h-8 w-8 p-0 bg-indigo-600 hover:bg-indigo-500 border-none rounded-md">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                                            </Button>
                                         </div>
-                                    </div>
-                                ))}
-                            </CardContent>
-                        </Card>
+                                    </form>
+                                    <p className="text-[10px] text-gray-600 font-mono mt-2 text-center uppercase">Press Enter to send, Shift+Enter for new line.</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <>
+                                <Card className="bg-black border-gray-800 shadow-sm">
+                                    <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">1. Campaign Context</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Campaign Goal</Label><Input className="bg-[#111] border-gray-800 text-white" value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-400 font-mono text-xs uppercase">Campaign Vertical</Label>
+                                            <select
+                                                value={campaignVertical}
+                                                onChange={e => setCampaignVertical(e.target.value)}
+                                                className="flex h-10 w-full rounded-md border border-gray-800 bg-[#111] text-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                            >
+                                                <option value="">General / Global Rules</option>
+                                                <option value="auto_insurance">Auto Insurance</option>
+                                                <option value="weight_loss">Weight Loss</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Product Summary</Label><Input className="bg-[#111] border-gray-800 text-white" value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
+                                        <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Target Audience</Label><Input className="bg-[#111] border-gray-800 text-white" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
+                                    </CardContent>
+                                </Card>
 
-                        <Button onClick={handleGenerate} disabled={loading} className="w-full h-12 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white font-mono uppercase tracking-widest border-0">
+                                <Card className="bg-black border-gray-800 shadow-sm">
+                                    <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">2. Advanced Constraints</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-400 font-mono text-xs uppercase">General Rules (One per line)</Label>
+                                            <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-400 font-mono text-xs uppercase">Compliance Guidelines (Zero Tolerance)</Label>
+                                            <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={compliance} onChange={e => setCompliance(e.target.value)} rows={3} />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="bg-black border-gray-800 shadow-sm">
+                                    <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">3. Assets & Seeds</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-400 font-mono text-xs uppercase">Image-to-Image Seeds (URLs)</Label>
+                                            <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={imageUrls} onChange={e => setImageUrls(e.target.value)} rows={3} placeholder="Paste public image URLs here..." />
+                                        </div>
+                                        <div className="space-y-2 p-4 bg-[#111] rounded-lg border border-dashed border-gray-800">
+                                            <Label className="block text-xs uppercase font-mono mb-2 text-gray-400">Upload Local File (Auto-hosted)</Label>
+                                            <Input
+                                                type="file"
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                                disabled={uploadingImage}
+                                                className="bg-black border-gray-800 text-gray-300 file:text-indigo-400 file:bg-gray-900 file:border-none hover:file:bg-gray-800 cursor-pointer"
+                                            />
+                                            {uploadingImage && <p className="text-xs font-mono text-indigo-400 mt-2 animate-pulse">&gt; Uploading to Cloud Storage...</p>}
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-gray-400 font-mono text-xs uppercase">Exact Image Text Overlay</Label>
+                                            <Input className="bg-[#111] border-gray-800 text-white" value={imageText} onChange={e => setImageText(e.target.value)} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 pt-2">
+                                            <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Headline</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedHeadline} placeholder="Leave blank to generate..." onChange={e => setSeedHeadline(e.target.value)} /></div>
+                                            <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Body</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedBody} placeholder="Leave blank to generate..." onChange={e => setSeedBody(e.target.value)} /></div>
+                                        </div>
+                                        <div className="flex items-center space-x-2 pt-2">
+                                            <Switch checked={useSeedsAsInspiration} onCheckedChange={setUseSeedsAsInspiration} />
+                                            <Label className="text-gray-400 font-mono text-xs">Use text seeds merely as inspiration (Rewrite)</Label>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+
+                                <Card className="bg-black border-gray-800 shadow-sm">
+                                    <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">4. Target Placements</CardTitle></CardHeader>
+                                    <CardContent className="space-y-4">
+                                        {META_PLACEMENTS.map(placement => (
+                                            <div key={placement.id} className="flex items-start space-x-3 p-2 hover:bg-[#111] rounded-md transition-colors border border-transparent hover:border-gray-800">
+                                                <Checkbox
+                                                    id={placement.id}
+                                                    checked={selectedPlacements.includes(placement.id)}
+                                                    onCheckedChange={(checked) => {
+                                                        if (checked) {
+                                                            setSelectedPlacements([...selectedPlacements, placement.id]);
+                                                        } else {
+                                                            setSelectedPlacements(selectedPlacements.filter(id => id !== placement.id));
+                                                        }
+                                                    }}
+                                                    className="border-gray-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+                                                />
+                                                <div className="space-y-1 leading-none mt-0.5">
+                                                    <Label htmlFor={placement.id} className="font-bold cursor-pointer text-gray-200">
+                                                        {placement.platform} - {placement.placement} <span className="text-indigo-400 font-mono">({placement.aspect_ratio})</span>
+                                                    </Label>
+                                                    <p className="text-xs text-gray-500 leading-relaxed font-mono mt-1">{placement.description}</p>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </CardContent>
+                                </Card>
+                            </>
+                        )}
+
+                        <Button onClick={handleGenerate} disabled={loading} className="w-full h-12 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white font-mono uppercase tracking-widest border-0 mt-4 shadow-lg shadow-indigo-500/20">
                             {loading ? "[ GENERATING... ]" : "[ EXECUTE ]"}
                         </Button>
                     </div>
