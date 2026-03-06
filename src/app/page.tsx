@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw } from "lucide-react";
 import { META_PLACEMENTS } from "@/data/placements.config";
+import { AdGroupView } from "@/components/ad-previews/AdGroupView";
 
 export default function Home() {
     const [jobId, setJobId] = useState<string | null>(null);
@@ -233,7 +234,7 @@ export default function Home() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
 
                     {/* LEFT COLUMN: Input Form */}
-                    <div className="space-y-6">
+                    <div className={`space-y-6 transition-all duration-700 ${results.length > 0 ? 'hidden' : 'block'}`}>
                         <Card className="border-red-200 shadow-sm">
                             <CardHeader className="bg-red-50 text-red-900 rounded-t-lg pb-4 border-b border-red-100">
                                 <CardTitle className="text-lg">Security Clearance</CardTitle>
@@ -354,9 +355,22 @@ export default function Home() {
                     </div>
 
                     {/* RIGHT COLUMN: Output/Results */}
-                    <div className="space-y-6">
-                        <Card className="h-full bg-gray-900 border-none text-white">
-                            <CardHeader><CardTitle>Live Preview</CardTitle></CardHeader>
+                    <div className={`space-y-6 transition-all duration-700 ${results.length > 0 ? 'col-span-1 md:col-span-2' : ''}`}>
+                        <Card className={`h-full border-none transition-colors duration-700 ${results.length > 0 ? 'bg-black text-white p-2 md:p-8' : 'bg-gray-900 text-white'}`}>
+                            <CardHeader className="flex flex-row items-center justify-between">
+                                <CardTitle className={results.length > 0 ? 'text-3xl font-black' : ''}>
+                                    {results.length > 0 ? 'Generated Ad Variations' : 'Live Preview'}
+                                </CardTitle>
+                                {results.length > 0 && (
+                                    <Button
+                                        variant="outline"
+                                        className="text-black border-white hover:bg-white hover:text-black"
+                                        onClick={() => setResults([])}
+                                    >
+                                        &larr; Start New Job
+                                    </Button>
+                                )}
+                            </CardHeader>
                             <CardContent>
                                 {loading && (
                                     <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
@@ -372,35 +386,13 @@ export default function Home() {
                                     </div>
                                 )}
 
-                                <div className="space-y-8">
-                                    {results.map((ad, idx) => (
-                                        <div key={idx} className="bg-gray-800 p-4 rounded-xl border border-gray-700">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <div className="flex items-center space-x-3">
-                                                    <span className="bg-indigo-600 px-3 py-1 rounded text-xs font-bold uppercase tracking-wider shadow-sm">
-                                                        {ad.placement_metadata?.platform} {ad.placement_metadata?.placement || ad.placement_metadata?.form}
-                                                    </span>
-                                                    {ad.placement_metadata?.id && (
-                                                        <button
-                                                            onClick={() => handleRegenerateSingle(ad.placement_metadata.id)}
-                                                            className="p-1.5 bg-gray-700 hover:bg-gray-600 border border-gray-600 rounded text-gray-300 hover:text-white transition-all flex items-center justify-center cursor-pointer shadow-sm"
-                                                            title="Re-run generation for this placement only"
-                                                        >
-                                                            <RefreshCw size={14} />
-                                                        </button>
-                                                    )}
-                                                </div>
-                                                <span className="text-gray-400 text-xs font-mono bg-gray-900 px-2 py-1 rounded">{ad.placement_metadata?.aspect_ratio}</span>
-                                            </div>
-
-                                            <img src={ad.media_url} className="w-full rounded-lg mb-4 object-cover" />
-
-                                            <div className="space-y-2">
-                                                <h3 className="font-bold text-lg leading-tight">{ad.headline}</h3>
-                                                <p className="text-gray-300 text-sm leading-relaxed">{ad.body_copy}</p>
-                                            </div>
-                                        </div>
-                                    ))}
+                                <div className="space-y-8 mt-4">
+                                    {results.length > 0 && (
+                                        <AdGroupView
+                                            results={results}
+                                            onRegenerateSingle={handleRegenerateSingle}
+                                        />
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
