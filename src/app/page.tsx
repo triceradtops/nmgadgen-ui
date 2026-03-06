@@ -200,6 +200,7 @@ export default function Home() {
                 if (data.project_context.reference_image_urls) setImageUrls(data.project_context.reference_image_urls.join("\n"));
                 if (data.project_context.seed_headline) setSeedHeadline(data.project_context.seed_headline);
                 if (data.project_context.seed_body_copy) setSeedBody(data.project_context.seed_body_copy);
+                if (data.project_context.image_text_overlay) setImageText(data.project_context.image_text_overlay);
             }
 
             if (data.config && data.config.target_placements) {
