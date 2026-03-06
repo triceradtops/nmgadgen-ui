@@ -7,7 +7,7 @@ export async function GET(
     // Get the access code passed from the frontend for auth
     const accessCode = request.headers.get("x-access-code");
 
-    if (accessCode !== "CreativeBoxAdmin2026!") {
+    if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "nmg_super_secret_2026")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
