@@ -8,7 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Menu, ChevronLeft, Terminal } from "lucide-react";
 import { META_PLACEMENTS } from "@/data/placements.config";
 import { AdGroupView } from "@/components/ad-previews/AdGroupView";
 
@@ -17,6 +17,14 @@ export default function Home() {
     const [loading, setLoading] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
     const [results, setResults] = useState<any[]>([]);
+
+    // Layout
+    const [isConfigOpen, setIsConfigOpen] = useState(true);
+    const [terminalLogs, setTerminalLogs] = useState<string[]>(["[SYSTEM] CreativeBox Initialized..."]);
+
+    const appendLog = (msg: string) => {
+        setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
+    };
 
     // Security
     const [accessCode, setAccessCode] = useState("");
@@ -74,7 +82,10 @@ export default function Home() {
         setLoading(true);
         setJobId(null);
         setResults([]);
+        setTerminalLogs(["[SYSTEM] Generation Job Started..."]);
+        setIsConfigOpen(false); // Auto-collapse config when generating
 
+        appendLog("Compiling target placement variants...");
         const target_placements = selectedPlacements.map(id => {
             const spec = META_PLACEMENTS.find(p => p.id === id);
             return spec ? {
@@ -108,6 +119,9 @@ export default function Home() {
         };
 
         try {
+            appendLog("Injecting compliance constraints...");
+            appendLog("Calling local Generation Router...");
+
             // We will send this to our local Next.js API Route to securely attach the API Key!
             const res = await fetch("/api/generate", {
                 method: "POST",
@@ -120,13 +134,16 @@ export default function Home() {
 
             const data = await res.json();
             if (data.job_id) {
+                appendLog(`Worker Job Dispatched. ID: ${data.job_id}`);
                 setJobId(data.job_id);
                 pollResults(data.job_id);
             } else {
+                appendLog(`CRITICAL ERROR: ${JSON.stringify(data)}`);
                 alert("Failed to start job: " + JSON.stringify(data));
                 setLoading(false);
             }
         } catch (e) {
+            appendLog(`CRITICAL ERROR: Network failure submitting job.`);
             alert("Error submitting job.");
             setLoading(false);
         }
@@ -200,15 +217,18 @@ export default function Home() {
                 });
                 if (res.status === 200) {
                     const data = await res.json();
+                    appendLog("Job rendering complete. Downloading assets...");
                     setResults(data.ads_generated);
                     setLoading(false);
                     clearInterval(interval);
                 } else if (res.status !== 404) {
-                    // If it's a 400 or 500
                     const err = await res.json();
+                    appendLog(`CRITICAL ERROR: Job failed to render: ${JSON.stringify(err)}`);
                     alert("Job Failed: " + JSON.stringify(err));
                     setLoading(false);
                     clearInterval(interval);
+                } else {
+                    appendLog("Polling worker... generating creative assets...");
                 }
             } catch (e) {
                 // Keep polling
@@ -217,24 +237,36 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 p-8 font-sans">
-            <div className="max-w-5xl mx-auto space-y-8">
-                <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+        <div className="h-screen bg-gray-50 flex flex-col font-sans overflow-hidden">
+            {/* Nav Header */}
+            <div className="flex justify-between items-center bg-white border-b border-gray-200 px-6 py-3 shrink-0">
+                <div className="flex items-center gap-4">
+                    <button
+                        onClick={() => setIsConfigOpen(!isConfigOpen)}
+                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                    >
+                        {isConfigOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                    </button>
                     <div>
-                        <h1 className="text-4xl font-black tracking-tight text-gray-900">NMG Ad Gen</h1>
-                        <p className="text-gray-500 mt-2">Omni-Channel Generative Ad Engine</p>
-                    </div>
-                    <div>
-                        <a href="/history" className="text-indigo-600 hover:text-indigo-800 font-semibold border border-indigo-200 bg-indigo-50 px-4 py-2 rounded-lg transition-colors">
-                            Library & History &rarr;
-                        </a>
+                        <h1 className="text-xl font-black tracking-tight text-gray-900 leading-none">NMG Ad Gen</h1>
+                        <p className="text-gray-500 text-xs mt-1">Omni-Channel Generative Ad Engine</p>
                     </div>
                 </div>
+                <div>
+                    <a href="/history" className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold border border-indigo-200 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors">
+                        Library & History &rarr;
+                    </a>
+                </div>
+            </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* 3-Column Workspace */}
+            <div className="flex-1 flex overflow-hidden">
 
-                    {/* LEFT COLUMN: Input Form */}
-                    <div className={`space-y-6 transition-all duration-700 ${results.length > 0 ? 'hidden' : 'block'}`}>
+                {/* COLUMN 1: Config Sidebar */}
+                <div
+                    className={`bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden'}`}
+                >
+                    <div className="space-y-6 w-full min-w-[350px]">
                         <Card className="border-red-200 shadow-sm">
                             <CardHeader className="bg-red-50 text-red-900 rounded-t-lg pb-4 border-b border-red-100">
                                 <CardTitle className="text-lg">Security Clearance</CardTitle>
@@ -353,52 +385,55 @@ export default function Home() {
                             {loading ? "Generating Payload..." : "Generate Creatives"}
                         </Button>
                     </div>
-
-                    {/* RIGHT COLUMN: Output/Results */}
-                    <div className={`space-y-6 transition-all duration-700 ${results.length > 0 ? 'col-span-1 md:col-span-2' : ''}`}>
-                        <Card className={`h-full border-none transition-colors duration-700 ${results.length > 0 ? 'bg-black text-white p-2 md:p-8' : 'bg-gray-900 text-white'}`}>
-                            <CardHeader className="flex flex-row items-center justify-between">
-                                <CardTitle className={results.length > 0 ? 'text-3xl font-black' : ''}>
-                                    {results.length > 0 ? 'Generated Ad Variations' : 'Live Preview'}
-                                </CardTitle>
-                                {results.length > 0 && (
-                                    <Button
-                                        variant="outline"
-                                        className="text-black border-white hover:bg-white hover:text-black"
-                                        onClick={() => setResults([])}
-                                    >
-                                        &larr; Start New Job
-                                    </Button>
-                                )}
-                            </CardHeader>
-                            <CardContent>
-                                {loading && (
-                                    <div className="flex flex-col items-center justify-center p-12 text-center space-y-4">
-                                        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                        <p className="text-gray-400 font-mono">Job {jobId} Queued...</p>
-                                        <p className="text-xs text-indigo-400">Generative AI is crafting your visuals.</p>
-                                    </div>
-                                )}
-
-                                {!loading && results.length === 0 && (
-                                    <div className="text-center text-gray-500 py-12">
-                                        Ready to generate. Configure parameters on the left.
-                                    </div>
-                                )}
-
-                                <div className="space-y-8 mt-4">
-                                    {results.length > 0 && (
-                                        <AdGroupView
-                                            results={results}
-                                            onRegenerateSingle={handleRegenerateSingle}
-                                        />
-                                    )}
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-
                 </div>
+
+                {/* COLUMN 2: Generated Previews (Center) */}
+                <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+                    <div className="max-w-4xl mx-auto space-y-6">
+                        {loading && (
+                            <div className="flex flex-col items-center justify-center p-24 text-center space-y-4">
+                                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                                <p className="text-gray-500 font-mono">Job {jobId} Queued...</p>
+                                <p className="text-sm text-indigo-500 font-semibold">Generative AI is crafting your visuals.</p>
+                            </div>
+                        )}
+
+                        {!loading && results.length === 0 && (
+                            <div className="text-center text-gray-500 py-24 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
+                                <p className="font-semibold text-lg text-gray-700 mb-2">Workspace Ready.</p>
+                                <p>Configure your parameters on the left and click Generate.</p>
+                            </div>
+                        )}
+
+                        {!loading && results.length > 0 && (
+                            <AdGroupView
+                                results={results}
+                                onRegenerateSingle={handleRegenerateSingle}
+                            />
+                        )}
+                    </div>
+                </div>
+
+                {/* COLUMN 3: Terminal Console (Right) */}
+                <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
+                    <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
+                        <Terminal size={16} className="text-green-500" />
+                        <span className="text-xs font-mono font-bold tracking-wider uppercase">System Console</span>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
+                        {terminalLogs.map((log, i) => (
+                            <div key={i} className={`${log.includes("ERROR") ? 'text-red-400' : 'text-green-400'}`}>
+                                {log}
+                            </div>
+                        ))}
+                        {loading && (
+                            <div className="text-green-500/50 flex space-x-1 animate-pulse">
+                                <span>_</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
             </div>
         </div>
     );
