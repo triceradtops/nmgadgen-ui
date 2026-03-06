@@ -218,9 +218,16 @@ export default function Home() {
     return (
         <div className="min-h-screen bg-gray-50 p-8 font-sans">
             <div className="max-w-5xl mx-auto space-y-8">
-                <div>
-                    <h1 className="text-4xl font-black tracking-tight text-gray-900">NMG Ad Gen</h1>
-                    <p className="text-gray-500 mt-2">Omni-Channel Generative Ad Engine</p>
+                <div className="flex justify-between items-end border-b border-gray-200 pb-4">
+                    <div>
+                        <h1 className="text-4xl font-black tracking-tight text-gray-900">NMG Ad Gen</h1>
+                        <p className="text-gray-500 mt-2">Omni-Channel Generative Ad Engine</p>
+                    </div>
+                    <div>
+                        <a href="/history" className="text-indigo-600 hover:text-indigo-800 font-semibold border border-indigo-200 bg-indigo-50 px-4 py-2 rounded-lg transition-colors">
+                            Library & History &rarr;
+                        </a>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
