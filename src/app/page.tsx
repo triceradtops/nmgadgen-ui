@@ -183,8 +183,14 @@ export default function Home() {
             });
 
             if (!res.ok) {
-                appendLog("ERROR: Parsing failed.");
-                setChatHistory(prev => [...prev, { role: "assistant", content: "ERROR: System failed to parse configuration intent." }]);
+                let errorMsg = "ERROR: System failed to parse configuration intent.";
+                try {
+                    const errData = await res.json();
+                    if (errData.detail) errorMsg = `ERROR: ${errData.detail}`;
+                } catch (e) { }
+
+                appendLog(`ERROR: ${errorMsg}`);
+                setChatHistory(prev => [...prev, { role: "assistant", content: errorMsg }]);
                 return;
             }
 

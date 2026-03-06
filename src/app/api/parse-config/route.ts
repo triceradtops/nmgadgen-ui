@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(request: Request) {
     try {
         const accessCode = request.headers.get("x-access-code");
-        if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "nmg_super_secret_2026")) {
+        if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "CreativeBoxAdmin2026!")) {
             return NextResponse.json({ error: "Unauthorized. Invalid Access Code." }, { status: 401 });
         }
 
