@@ -22,6 +22,19 @@ export default function HistoryPage() {
             });
             if (!res.ok) throw new Error("Failed to load prompts");
             const data = await res.json();
+
+            if (!data || (!data.claude_prompt && !data.gemini_prompt)) {
+                setPrompts(prev => ({
+                    ...prev, [resultId]: {
+                        loading: false, data: {
+                            claude_prompt: "No audit log available for this legacy generation.",
+                            gemini_prompt: "No audit log available for this legacy generation."
+                        }
+                    }
+                }));
+                return;
+            }
+
             setPrompts(prev => ({ ...prev, [resultId]: { loading: false, data } }));
         } catch (err: any) {
             setPrompts(prev => ({ ...prev, [resultId]: { loading: false, data: null, error: err.message } }));
