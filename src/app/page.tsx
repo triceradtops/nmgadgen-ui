@@ -8,9 +8,10 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { RefreshCw, Menu, ChevronLeft, Terminal } from "lucide-react";
+import { Menu, ChevronLeft, Terminal } from "lucide-react";
 import { META_PLACEMENTS } from "@/data/placements.config";
 import { AdGroupView } from "@/components/ad-previews/AdGroupView";
+import Link from 'next/link';
 
 export default function Home() {
     const [jobId, setJobId] = useState<string | null>(null);
@@ -237,25 +238,25 @@ export default function Home() {
     };
 
     return (
-        <div className="h-screen bg-gray-50 flex flex-col font-sans overflow-hidden">
+        <div className="h-screen bg-[#0a0a0a] text-gray-300 flex flex-col font-sans overflow-hidden">
             {/* Nav Header */}
-            <div className="flex justify-between items-center bg-white border-b border-gray-200 px-6 py-3 shrink-0">
+            <div className="flex justify-between items-center bg-[#111] border-b border-gray-800 px-6 py-3 shrink-0">
                 <div className="flex items-center gap-4">
                     <button
                         onClick={() => setIsConfigOpen(!isConfigOpen)}
-                        className="p-2 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+                        className="p-2 bg-[#0a0a0a] hover:bg-gray-800 rounded-md transition-colors text-gray-400 border border-gray-800"
                     >
                         {isConfigOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
                     </button>
                     <div>
-                        <h1 className="text-xl font-black tracking-tight text-gray-900 leading-none">NMG Ad Gen</h1>
-                        <p className="text-gray-500 text-xs mt-1">Omni-Channel Generative Ad Engine</p>
+                        <h1 className="text-xl font-black tracking-tight text-gray-100 leading-none">NMG Ad Gen</h1>
+                        <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">Omni-Channel Generative Ad Engine</p>
                     </div>
                 </div>
                 <div>
-                    <a href="/history" className="text-indigo-600 hover:text-indigo-800 text-sm font-semibold border border-indigo-200 bg-indigo-50 px-3 py-1.5 rounded-md transition-colors">
-                        Library & History &rarr;
-                    </a>
+                    <Link href="/history" className="text-indigo-400 hover:text-indigo-300 text-sm border border-indigo-900/50 bg-indigo-900/10 px-3 py-1.5 rounded-md transition-colors font-mono">
+                        [ LIBRARY_HISTORY ]
+                    </Link>
                 </div>
             </div>
 
@@ -264,101 +265,101 @@ export default function Home() {
 
                 {/* COLUMN 1: Config Sidebar */}
                 <div
-                    className={`bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden'}`}
+                    className={`bg-[#111] border-r border-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}
                 >
                     <div className="space-y-6 w-full min-w-[350px]">
-                        <Card className="border-red-200 shadow-sm">
-                            <CardHeader className="bg-red-50 text-red-900 rounded-t-lg pb-4 border-b border-red-100">
-                                <CardTitle className="text-lg">Security Clearance</CardTitle>
+                        <Card className="bg-black border-red-900/30 shadow-sm">
+                            <CardHeader className="bg-red-950/20 text-red-500 rounded-t-lg pb-4 border-b border-red-900/30">
+                                <CardTitle className="text-lg font-mono uppercase tracking-wider">Security Clearance</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4">
                                 <div className="space-y-2">
-                                    <Label className="font-bold text-gray-700">Team Access Code</Label>
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Team Access Code</Label>
                                     <Input
                                         type="password"
-                                        placeholder="Enter the master access code to generate..."
+                                        placeholder="Enter the master access code..."
                                         value={accessCode}
                                         onChange={e => setAccessCode(e.target.value)}
-                                        className="border-red-200 focus:ring-red-500"
+                                        className="bg-[#0a0a0a] border-red-900/50 text-white focus:ring-red-500 font-mono"
                                     />
-                                    <p className="text-xs text-gray-500">Required. Unauthorized generations will be rejected.</p>
+                                    <p className="text-xs text-gray-600 font-mono">Required. Unauthorized generations will be rejected.</p>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader><CardTitle>1. Campaign Context</CardTitle></CardHeader>
+                        <Card className="bg-black border-gray-800 shadow-sm">
+                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">1. Campaign Context</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="space-y-2"><Label>Campaign Goal</Label><Input value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
+                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Campaign Goal</Label><Input className="bg-[#111] border-gray-800 text-white" value={campaignGoal} onChange={e => setCampaignGoal(e.target.value)} /></div>
                                 <div className="space-y-2">
-                                    <Label>Campaign Vertical</Label>
+                                    <Label className="text-gray-400 font-mono text-xs uppercase">Campaign Vertical</Label>
                                     <select
                                         value={campaignVertical}
                                         onChange={e => setCampaignVertical(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900"
+                                        className="flex h-10 w-full rounded-md border border-gray-800 bg-[#111] text-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                     >
                                         <option value="">General / Global Rules</option>
                                         <option value="auto_insurance">Auto Insurance</option>
                                         <option value="weight_loss">Weight Loss</option>
                                     </select>
                                 </div>
-                                <div className="space-y-2"><Label>Product Summary</Label><Input value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
-                                <div className="space-y-2"><Label>Target Audience</Label><Input value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
+                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Product Summary</Label><Input className="bg-[#111] border-gray-800 text-white" value={productSummary} onChange={e => setProductSummary(e.target.value)} /></div>
+                                <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Target Audience</Label><Input className="bg-[#111] border-gray-800 text-white" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} /></div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader><CardTitle>2. Advanced Constraints</CardTitle></CardHeader>
+                        <Card className="bg-black border-gray-800 shadow-sm">
+                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">2. Advanced Constraints</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>General Rules (One per line)</Label>
-                                    <Textarea value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
+                                    <Label className="text-gray-400 font-mono text-xs uppercase">General Rules (One per line)</Label>
+                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Compliance Guidelines (Zero Tolerance)</Label>
-                                    <Textarea value={compliance} onChange={e => setCompliance(e.target.value)} rows={3} />
+                                    <Label className="text-gray-400 font-mono text-xs uppercase">Compliance Guidelines (Zero Tolerance)</Label>
+                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={compliance} onChange={e => setCompliance(e.target.value)} rows={3} />
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader><CardTitle>3. Assets & Seeds</CardTitle></CardHeader>
+                        <Card className="bg-black border-gray-800 shadow-sm">
+                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">3. Assets & Seeds</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label>Image-to-Image Seeds (URLs)</Label>
-                                    <Textarea value={imageUrls} onChange={e => setImageUrls(e.target.value)} rows={3} placeholder="Paste public image URLs here..." />
+                                    <Label className="text-gray-400 font-mono text-xs uppercase">Image-to-Image Seeds (URLs)</Label>
+                                    <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={imageUrls} onChange={e => setImageUrls(e.target.value)} rows={3} placeholder="Paste public image URLs here..." />
                                 </div>
-                                <div className="space-y-2 p-4 bg-gray-100 rounded-lg border border-dashed border-gray-300">
-                                    <Label className="block text-sm font-semibold mb-2 text-gray-700">Upload Local File (Auto-hosted)</Label>
+                                <div className="space-y-2 p-4 bg-[#111] rounded-lg border border-dashed border-gray-800">
+                                    <Label className="block text-xs uppercase font-mono mb-2 text-gray-400">Upload Local File (Auto-hosted)</Label>
                                     <Input
                                         type="file"
                                         accept="image/*"
                                         onChange={handleImageUpload}
                                         disabled={uploadingImage}
-                                        className="bg-white"
+                                        className="bg-black border-gray-800 text-gray-300 file:text-indigo-400 file:bg-gray-900 file:border-none hover:file:bg-gray-800 cursor-pointer"
                                     />
-                                    {uploadingImage && <p className="text-sm font-semibold text-indigo-500 mt-2">Uploading to Cloud Storage...</p>}
+                                    {uploadingImage && <p className="text-xs font-mono text-indigo-400 mt-2 animate-pulse">&gt; Uploading to Cloud Storage...</p>}
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Exact Image Text Overlay</Label>
-                                    <Input value={imageText} onChange={e => setImageText(e.target.value)} />
+                                    <Label className="text-gray-400 font-mono text-xs uppercase">Exact Image Text Overlay</Label>
+                                    <Input className="bg-[#111] border-gray-800 text-white" value={imageText} onChange={e => setImageText(e.target.value)} />
                                 </div>
                                 <div className="grid grid-cols-2 gap-4 pt-2">
-                                    <div className="space-y-2"><Label>Seed Headline</Label><Input value={seedHeadline} placeholder="Leave blank to generate..." onChange={e => setSeedHeadline(e.target.value)} /></div>
-                                    <div className="space-y-2"><Label>Seed Body</Label><Input value={seedBody} placeholder="Leave blank to generate..." onChange={e => setSeedBody(e.target.value)} /></div>
+                                    <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Headline</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedHeadline} placeholder="Leave blank to generate..." onChange={e => setSeedHeadline(e.target.value)} /></div>
+                                    <div className="space-y-2"><Label className="text-gray-400 font-mono text-xs uppercase">Seed Body</Label><Input className="bg-[#111] border-gray-800 text-white" value={seedBody} placeholder="Leave blank to generate..." onChange={e => setSeedBody(e.target.value)} /></div>
                                 </div>
                                 <div className="flex items-center space-x-2 pt-2">
                                     <Switch checked={useSeedsAsInspiration} onCheckedChange={setUseSeedsAsInspiration} />
-                                    <Label>Use text seeds merely as inspiration (Rewrite)</Label>
+                                    <Label className="text-gray-400 font-mono text-xs">Use text seeds merely as inspiration (Rewrite)</Label>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader><CardTitle>4. Target Placements</CardTitle></CardHeader>
+                        <Card className="bg-black border-gray-800 shadow-sm">
+                            <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">4. Target Placements</CardTitle></CardHeader>
                             <CardContent className="space-y-4">
                                 {META_PLACEMENTS.map(placement => (
-                                    <div key={placement.id} className="flex items-start space-x-3 p-2 hover:bg-gray-100 rounded-md transition-colors">
+                                    <div key={placement.id} className="flex items-start space-x-3 p-2 hover:bg-[#111] rounded-md transition-colors border border-transparent hover:border-gray-800">
                                         <Checkbox
                                             id={placement.id}
                                             checked={selectedPlacements.includes(placement.id)}
@@ -369,39 +370,40 @@ export default function Home() {
                                                     setSelectedPlacements(selectedPlacements.filter(id => id !== placement.id));
                                                 }
                                             }}
+                                            className="border-gray-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
                                         />
-                                        <div className="space-y-1 leading-none">
-                                            <Label htmlFor={placement.id} className="font-bold cursor-pointer">
-                                                {placement.platform} - {placement.placement} ({placement.aspect_ratio})
+                                        <div className="space-y-1 leading-none mt-0.5">
+                                            <Label htmlFor={placement.id} className="font-bold cursor-pointer text-gray-200">
+                                                {placement.platform} - {placement.placement} <span className="text-indigo-400 font-mono">({placement.aspect_ratio})</span>
                                             </Label>
-                                            <p className="text-xs text-gray-500">{placement.description}</p>
+                                            <p className="text-xs text-gray-500 leading-relaxed font-mono mt-1">{placement.description}</p>
                                         </div>
                                     </div>
                                 ))}
                             </CardContent>
                         </Card>
 
-                        <Button onClick={handleGenerate} disabled={loading} className="w-full h-12 text-lg font-bold">
-                            {loading ? "Generating Payload..." : "Generate Creatives"}
+                        <Button onClick={handleGenerate} disabled={loading} className="w-full h-12 text-lg font-bold bg-indigo-600 hover:bg-indigo-500 text-white font-mono uppercase tracking-widest border-0">
+                            {loading ? "[ GENERATING... ]" : "[ EXECUTE ]"}
                         </Button>
                     </div>
                 </div>
 
                 {/* COLUMN 2: Generated Previews (Center) */}
-                <div className="flex-1 overflow-y-auto bg-gray-100 p-6">
+                <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
                     <div className="max-w-4xl mx-auto space-y-6">
                         {loading && (
                             <div className="flex flex-col items-center justify-center p-24 text-center space-y-4">
-                                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                                <p className="text-gray-500 font-mono">Job {jobId} Queued...</p>
-                                <p className="text-sm text-indigo-500 font-semibold">Generative AI is crafting your visuals.</p>
+                                <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin shadow-[0_0_15px_rgba(99,102,241,0.5)]"></div>
+                                <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Job {jobId} Queued...</p>
+                                <p className="text-sm text-indigo-400 font-mono uppercase tracking-widest text-shadow">Generative AI Engine Online</p>
                             </div>
                         )}
 
                         {!loading && results.length === 0 && (
-                            <div className="text-center text-gray-500 py-24 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
-                                <p className="font-semibold text-lg text-gray-700 mb-2">Workspace Ready.</p>
-                                <p>Configure your parameters on the left and click Generate.</p>
+                            <div className="text-center text-gray-600 py-32 border border-dashed border-gray-800 rounded-xl bg-[#111]">
+                                <p className="font-mono text-sm tracking-widest text-gray-500 mb-2 uppercase">[ WORKSPACE READY ]</p>
+                                <p className="text-xs font-mono text-gray-600">Configure parameters & execute generation protocol.</p>
                             </div>
                         )}
 

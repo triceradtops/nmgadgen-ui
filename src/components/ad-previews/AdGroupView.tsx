@@ -61,9 +61,9 @@ export function AdGroupView({ results, onRegenerateSingle }: AdGroupViewProps) {
                 const anchorVisual = ads[0].media_url;
 
                 return (
-                    <div key={ratio} className="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
+                    <div key={ratio} className="bg-black border border-gray-800 rounded-2xl overflow-hidden shadow-2xl">
                         {/* Group Header */}
-                        <div className="bg-gray-800 px-6 py-4 border-b border-gray-700 flex items-center justify-between">
+                        <div className="bg-[#111] px-6 py-4 border-b border-gray-800 flex items-center justify-between">
                             <h2 className="text-xl font-black text-white flex items-center gap-3">
                                 <span className="text-indigo-400 font-mono text-sm tracking-widest uppercase bg-indigo-400/10 px-3 py-1 rounded-full">
                                     {ratio}
@@ -79,9 +79,9 @@ export function AdGroupView({ results, onRegenerateSingle }: AdGroupViewProps) {
 
                             {/* Left Column: Core Visual Asset */}
                             <div className={`w-full ${getContainerWidth(ratio)} shrink-0 mx-auto xl:mx-0 relative`}>
-                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-xl blur opacity-25"></div>
-                                <div className="relative rounded-xl overflow-hidden border border-gray-700 bg-gray-950 shadow-inner">
-                                    <div className="bg-gray-800 text-xs text-center py-2 text-gray-400 font-mono tracking-wide border-b border-gray-700 uppercase">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 rounded-xl blur opacity-25"></div>
+                                <div className="relative rounded-xl overflow-hidden border border-gray-800 bg-[#111] shadow-inner">
+                                    <div className="bg-black text-[10px] text-center py-2 text-gray-500 font-mono tracking-widest border-b border-gray-800 uppercase">
                                         Rendered Visual
                                     </div>
                                     <img
@@ -101,7 +101,7 @@ export function AdGroupView({ results, onRegenerateSingle }: AdGroupViewProps) {
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-6">
                                     {ads.map((ad, idx) => (
-                                        <Card key={idx} className="bg-gray-800/50 border-gray-700 hover:bg-gray-800/80 transition-colors">
+                                        <Card key={idx} className="bg-[#111] border-gray-800 hover:bg-[#1a1a1a] transition-colors rounded-xl shadow-lg">
                                             <CardHeader className="pb-3 pt-4 px-5">
                                                 <div className="flex justify-between items-start gap-4">
                                                     <div>
