@@ -8,13 +8,13 @@ export async function GET(
     const accessCode = request.headers.get("x-access-code");
 
     if (accessCode !== (process.env.FRONTEND_ACCESS_CODE || "nmg_super_secret_2026")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "Unauthorized. Invalid Access Code." }, { status: 401 });
     }
 
     const { id } = await params;
 
     try {
-        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+        const BACKEND_URL = "https://web-production-1f2e2.up.railway.app";
         // Call the python backend
         const response = await fetch(`${BACKEND_URL}/api/results/${id}/prompts`, {
             method: "GET",
