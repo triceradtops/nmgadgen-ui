@@ -35,7 +35,7 @@ export async function GET(
     } catch (error) {
         console.error("API proxy error:", error);
         return NextResponse.json(
-            { error: "Internal Server Error" },
+            { error: "Internal Server Error", details: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined },
             { status: 500 }
         );
     }
