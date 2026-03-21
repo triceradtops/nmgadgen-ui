@@ -31,7 +31,7 @@ export default function Home() {
 
     // Layout
     const [isConfigOpen, setIsConfigOpen] = useState(true);
-    const [terminalLogs, setTerminalLogs] = useState<string[]>(["[SYSTEM] CreativeBox Initialized..."]);
+    const [terminalLogs, setTerminalLogs] = useState<string[]>(["[SYSTEM] NMG Ad Gen Initialized..."]);
 
     const appendLog = (msg: string) => {
         setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -374,7 +374,7 @@ export default function Home() {
                                     {chatHistory.map((msg, idx) => (
                                         <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`max-w-[85%] rounded-lg p-3 text-sm ${msg.role === 'user' ? 'bg-indigo-900/40 text-indigo-100 border border-indigo-500/30' : 'bg-gray-900/80 text-gray-300 border border-gray-800'}`}>
-                                                {msg.role === 'assistant' && <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest block mb-1">CreativeBox_AI</span>}
+                                                {msg.role === 'assistant' && <span className="text-[10px] font-mono text-indigo-400 uppercase tracking-widest block mb-1">NMG_Ad_Gen_AI</span>}
                                                 {msg.role === 'user' && <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest block mb-1 text-right">User</span>}
                                                 <p className="whitespace-pre-wrap">{msg.content}</p>
                                             </div>
