@@ -56,6 +56,8 @@ export default function Home() {
     const [seedBody, setSeedBody] = useState("");
     const [useSeedsAsInspiration, setUseSeedsAsInspiration] = useState(true);
     const [imageText, setImageText] = useState("");
+    const [adStyle, setAdStyle] = useState("none");
+    const [ctaType, setCtaType] = useState("in_image");
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files || e.target.files.length === 0) return;
@@ -124,7 +126,8 @@ export default function Home() {
                 target_placements: target_placements,
                 use_seeds_as_inspiration: useSeedsAsInspiration,
                 desired_output_type: "static_image_with_text",
-                style_template: "professional_modern",
+                style_template: adStyle,
+                cta_type: ctaType,
                 image_copy: imageText ? { text: imageText, style_prompt: "bold sans-serif font" } : undefined
             }
         };
@@ -262,7 +265,8 @@ export default function Home() {
                 target_placements: target_placements,
                 use_seeds_as_inspiration: useSeedsAsInspiration,
                 desired_output_type: "static_image_with_text",
-                style_template: "professional_modern",
+                style_template: adStyle,
+                cta_type: ctaType,
                 image_copy: imageText ? { text: imageText, style_prompt: "bold sans-serif font" } : undefined
             }
         };
@@ -437,6 +441,31 @@ export default function Home() {
                                 <Card className="bg-black border-gray-800 shadow-sm">
                                     <CardHeader><CardTitle className="text-gray-100 font-mono uppercase text-sm tracking-wider">2. Advanced Constraints</CardTitle></CardHeader>
                                     <CardContent className="space-y-4">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label className="text-gray-400 font-mono text-xs uppercase">Visual Style</Label>
+                                                <select
+                                                    value={adStyle}
+                                                    onChange={e => setAdStyle(e.target.value)}
+                                                    className="flex h-10 w-full rounded-md border border-gray-800 bg-[#111] text-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                >
+                                                    <option value="none">None (Let AI Decide)</option>
+                                                    <option value="ugc">UGC (Unpolished / Natural)</option>
+                                                    <option value="3d_render">3D Render / Illustration</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-gray-400 font-mono text-xs uppercase">Call to Action (CTA)</Label>
+                                                <select
+                                                    value={ctaType}
+                                                    onChange={e => setCtaType(e.target.value)}
+                                                    className="flex h-10 w-full rounded-md border border-gray-800 bg-[#111] text-white px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                >
+                                                    <option value="in_image">In-Image (Rendered Button)</option>
+                                                    <option value="no_cta">No CTA (Clean Graphic)</option>
+                                                </select>
+                                            </div>
+                                        </div>
                                         <div className="space-y-2">
                                             <Label className="text-gray-400 font-mono text-xs uppercase">General Rules (One per line)</Label>
                                             <Textarea className="bg-[#111] border-gray-800 text-white font-mono text-xs" value={constraints} onChange={e => setConstraints(e.target.value)} rows={3} />
