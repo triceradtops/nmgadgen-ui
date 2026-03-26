@@ -393,6 +393,29 @@ export default function Home() {
                                     )}
                                 </div>
                                 <div className="p-3 border-t border-gray-800 bg-[#111]">
+                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                        <div>
+                                            <select
+                                                value={adStyle}
+                                                onChange={e => setAdStyle(e.target.value)}
+                                                className="flex h-8 w-full rounded-md border border-gray-800 bg-black text-gray-300 px-2 py-1 text-[10px] uppercase focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                                            >
+                                                <option value="none">Style: AI Decide</option>
+                                                <option value="ugc">Style: UGC / Natural</option>
+                                                <option value="3d_render">Style: 3D Render</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <select
+                                                value={ctaType}
+                                                onChange={e => setCtaType(e.target.value)}
+                                                className="flex h-8 w-full rounded-md border border-gray-800 bg-black text-gray-300 px-2 py-1 text-[10px] uppercase focus:outline-none focus:ring-1 focus:ring-indigo-500 font-mono"
+                                            >
+                                                <option value="in_image">CTA: In-Image Button</option>
+                                                <option value="no_cta">CTA: No Graphic CTA</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                     <form onSubmit={handleChatSubmit} className="flex gap-2 relative">
                                         <Textarea
                                             value={chatInput}
