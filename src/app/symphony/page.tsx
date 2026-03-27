@@ -132,7 +132,8 @@ export default function SymphonyStudio() {
                             setLoading(false);
                             clearInterval(interval);
                         } else if (t.status === "FAILED") {
-                            appendLog(`CRITICAL ERROR: TikTok rejected job: ${t.fail_reason || 'Unknown reason'}`);
+                            const errorObj = t.fail_reason || t.error_msg || t.message || t.fail_msg || JSON.stringify(t);
+                            appendLog(`CRITICAL ERROR: TikTok rejected job: ${errorObj}`);
                             setLoading(false);
                             clearInterval(interval);
                         }
