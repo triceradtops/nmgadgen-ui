@@ -19,7 +19,7 @@ export default function SymphonyStudio() {
     const [avatars, setAvatars] = useState<any[]>([]);
     const [voices, setVoices] = useState<any[]>([]);
     const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
-    const [selectedVoiceId, setSelectedVoiceId] = useState<string>("en.male.funny");
+    const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
     
     // Result
@@ -51,8 +51,9 @@ export default function SymphonyStudio() {
             try {
                 const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/voices");
                 const data = await res.json();
-                if (data.status === "success" && data.data) {
+                if (data.status === "success" && data.data?.length > 0) {
                     setVoices(data.data);
+                    setSelectedVoiceId(data.data[0].voice_id);
                     appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
                 }
             } catch (err) {}
@@ -199,14 +200,9 @@ export default function SymphonyStudio() {
                                         onChange={e => setSelectedVoiceId(e.target.value)}
                                         className="flex h-10 w-full rounded-md border border-teal-900/50 bg-[#0a0a0a] text-teal-400 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
                                     >
-                                        <option value="en_us_001">English Female 1</option>
-                                        <option value="en.male.funny">English Male (Funny)</option>
-                                        <option value="en_us_002">English Male 2</option>
-                                        <option value="es_mx_001">Spanish Male (LATAM)</option>
-                                        <option value="es_mx_002">Spanish Female (LATAM)</option>
-                                        {voices.filter(v => !["en_us_001", "en.male.funny", "en_us_002", "es_mx_001", "es_mx_002"].includes(v.voice_id)).map(v => (
+                                        {voices.map(v => (
                                             <option key={v.voice_id} value={v.voice_id}>
-                                                {v.language_code.toUpperCase()} - {v.voice_id}
+                                                {v.voice_name ? v.voice_name : v.voice_id}
                                             </option>
                                         ))}
                                     </select>
