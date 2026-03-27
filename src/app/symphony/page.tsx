@@ -17,7 +17,9 @@ export default function SymphonyStudio() {
     
     // Symphony Data
     const [avatars, setAvatars] = useState<any[]>([]);
+    const [voices, setVoices] = useState<any[]>([]);
     const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
+    const [selectedVoiceId, setSelectedVoiceId] = useState<string>("en.male.funny");
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
     
     // Result
@@ -44,7 +46,19 @@ export default function SymphonyStudio() {
                 appendLog("ERROR: Failed to connect to TikTok API backend.");
             }
         };
+
+        const fetchVoices = async () => {
+            try {
+                const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/voices");
+                const data = await res.json();
+                if (data.status === "success" && data.data) {
+                    setVoices(data.data);
+                    appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
+                }
+            } catch (err) {}
+        };
         fetchAvatars();
+        fetchVoices();
     }, []);
 
     const handleGenerate = async () => {
@@ -60,11 +74,12 @@ export default function SymphonyStudio() {
         setIsConfigOpen(false);
 
         try {
-            appendLog(`Dispatching Avatar ID: ${selectedAvatarId}`);
+            appendLog(`Dispatching Avatar ID: ${selectedAvatarId} with Voice: ${selectedVoiceId}`);
             const payload = {
                 material_packages: [{
                     avatar_id: selectedAvatarId,
-                    script: script
+                    script: script,
+                    voice_id: selectedVoiceId
                 }]
             };
 
@@ -174,6 +189,26 @@ export default function SymphonyStudio() {
                                         className="bg-[#0a0a0a] border-teal-900/50 text-white focus:ring-teal-500 font-mono text-xs"
                                     />
                                     <p className="text-xs text-gray-600 font-mono">The Avatar will naturally lip-sync this exact text.</p>
+                                </div>
+                                
+                                <div className="space-y-2 pt-2">
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Voice Model</Label>
+                                    <select
+                                        value={selectedVoiceId}
+                                        onChange={e => setSelectedVoiceId(e.target.value)}
+                                        className="flex h-10 w-full rounded-md border border-teal-900/50 bg-[#0a0a0a] text-teal-400 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    >
+                                        <option value="en_us_001">English Female 1</option>
+                                        <option value="en.male.funny">English Male (Funny)</option>
+                                        <option value="en_us_002">English Male 2</option>
+                                        <option value="es_mx_001">Spanish Male (LATAM)</option>
+                                        <option value="es_mx_002">Spanish Female (LATAM)</option>
+                                        {voices.filter(v => !["en_us_001", "en.male.funny", "en_us_002", "es_mx_001", "es_mx_002"].includes(v.voice_id)).map(v => (
+                                            <option key={v.voice_id} value={v.voice_id}>
+                                                {v.language_code.toUpperCase()} - {v.voice_id}
+                                            </option>
+                                        ))}
+                                    </select>
                                 </div>
                             </CardContent>
                         </Card>
