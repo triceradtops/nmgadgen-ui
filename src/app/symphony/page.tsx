@@ -116,8 +116,8 @@ export default function SymphonyStudio() {
     const pollResults = async (id: string) => {
         const interval = setInterval(async () => {
             try {
-                // Need to provide aigc_video_type parameter to query TikTok's Avatar database!
-                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/video/${id}?aigc_video_type=AVATAR_PRODUCT`);
+                // Poll the dedicated Digital Avatar status endpoint
+                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/avatar/${id}`);
                 if (res.status === 200) {
                     const data = await res.json();
                     const tasks = data.list || [];
