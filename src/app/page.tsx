@@ -339,8 +339,11 @@ export default function Home() {
                     </div>
                 </div>
                 <div>
-                    <Link href="/history" className="text-indigo-400 hover:text-indigo-300 text-sm border border-indigo-900/50 bg-indigo-900/10 px-3 py-1.5 rounded-md transition-colors font-mono">
+                    <Link href="/history" className="text-indigo-400 hover:text-indigo-300 text-sm border border-indigo-900/50 bg-indigo-900/10 px-3 py-1.5 rounded-md transition-colors font-mono mr-2">
                         [ LIBRARY_HISTORY ]
+                    </Link>
+                    <Link href="/symphony" className="text-teal-400 hover:text-teal-300 text-sm border border-teal-900/50 bg-teal-900/10 px-3 py-1.5 rounded-md transition-colors font-mono">
+                        [ TIKTOK_SYMPHONY ]
                     </Link>
                 </div>
             </div>
