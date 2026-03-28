@@ -31,9 +31,21 @@ export default function SymphonyStudio() {
     const [isConfigOpen, setIsConfigOpen] = useState(true);
     
     // Symphony Data
+    interface AvatarGroup {
+        groupId: string;
+        name: string;
+        identity: 'real' | 'aigc' | 'unknown';
+        representativeAvatar: any;
+        looks: any[];
+    }
+    
     const [avatars, setAvatars] = useState<any[]>([]);
     const [voices, setVoices] = useState<any[]>([]);
     const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([]);
+    
+    // Grouping & Identity States
+    const [activeIdentityTab, setActiveIdentityTab] = useState<'real' | 'aigc'>('real');
+    const [activeAvatarGroup, setActiveAvatarGroup] = useState<AvatarGroup | null>(null);
     
     // Gender Mapped Voice States
     const [avatarVoiceMap, setAvatarVoiceMap] = useState<Record<string, string>>({});
@@ -338,12 +350,54 @@ export default function SymphonyStudio() {
     const scenes = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'scene').flatMap((g: any) => g.tags?.map((t: string) => t.toLowerCase())) || [])))].filter(Boolean);
     const regions = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'region').flatMap((g: any) => g.tags?.map((t: string) => t.toLowerCase())) || [])))].filter(Boolean);
 
-    const filteredAvatars = safeAvatars.filter(a => {
-        if (searchQuery && !a.avatar_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !a.avatar_id?.includes(searchQuery)) return false;
+    // Dynamic Hierarchy: Identity -> Actor/Name Groups -> Individual Variations
+    const filteredAvatarGroups: AvatarGroup[] = (() => {
+        const groups = new Map<string, AvatarGroup>();
+        
+        const identityAvatars = safeAvatars.filter(a => {
+            const isAigc = a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'identity' && g.tags?.some((t: string) => t.toLowerCase() === 'aigc'));
+            const isReal = a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'identity' && g.tags?.some((t: string) => t.toLowerCase() === 'real'));
+            
+            if (activeIdentityTab === 'aigc') return isAigc || (!isReal && !isAigc); // fallback
+            return isReal;
+        });
+        
+        identityAvatars.forEach(a => {
+            let groupIdStr = null;
+            
+            // Prefer the precise Real-Human 'actor_name' tag for explicit logical clusters
+            a.tag_groups?.forEach((g: any) => {
+                if (g.tag_type?.toLowerCase() === 'actor_name' && g.tags?.[0]) groupIdStr = g.tags[0];
+            });
+            
+            // Fallback for AIGC which rely heavily on base 'avatar_name'
+            if (!groupIdStr) groupIdStr = a.avatar_name || a.avatar_id;
+            
+            // Safe fallback bounds
+            const finalGroupId = groupIdStr || 'unknown';
+            
+            if (!groups.has(finalGroupId)) {
+                groups.set(finalGroupId, {
+                    groupId: finalGroupId,
+                    name: a.avatar_name || finalGroupId,
+                    identity: activeIdentityTab,
+                    representativeAvatar: a,
+                    looks: []
+                });
+            }
+            groups.get(finalGroupId)!.looks.push(a);
+        });
+        
+        return Array.from(groups.values());
+    })().filter(group => {
+        const a = group.representativeAvatar;
+        
+        if (searchQuery && !a.avatar_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !a.avatar_id?.includes(searchQuery) && !group.groupId.toLowerCase().includes(searchQuery.toLowerCase())) return false;
         if (filterIndustry !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'industry' && g.tags?.some((t: string) => t.toLowerCase() === filterIndustry.toLowerCase()))) return false;
         if (filterGender !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'gender' && g.tags?.some((t: string) => t.toLowerCase() === filterGender.toLowerCase()))) return false;
         if (filterScene !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'scene' && g.tags?.some((t: string) => t.toLowerCase() === filterScene.toLowerCase()))) return false;
         if (filterRegion !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'region' && g.tags?.some((t: string) => t.toLowerCase() === filterRegion.toLowerCase()))) return false;
+        
         return true;
     });
 
@@ -611,11 +665,31 @@ export default function SymphonyStudio() {
 
                         {!loading && batchJobs.length === 0 && (
                             <>
-                                <div className="flex justify-between items-center mb-4">
-                                    <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Select Digital Actor</h2>
-                                    <div className="flex items-center gap-4">
-                                        <span className={`text-xs font-mono font-bold ${selectedAvatarIds.length >= 5 ? 'text-orange-500' : 'text-teal-500'}`}>{selectedAvatarIds.length}/5 Selected</span>
-                                        <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatars.length} Models Array</span>
+                                <div className="flex flex-col gap-4 mb-4">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Voiceover avatar</h2>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`text-xs font-mono font-bold ${selectedAvatarIds.length >= 5 ? 'text-orange-500' : 'text-teal-500'}`}>{selectedAvatarIds.length}/5 Selected</span>
+                                            <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-4 border-b border-gray-800 pb-2">
+                                        <button 
+                                            onClick={() => setActiveIdentityTab('real')}
+                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            Real-human
+                                            {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveIdentityTab('aigc')}
+                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            AI-generated
+                                            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">New</span>
+                                            {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                        </button>
                                     </div>
                                 </div>
                                 
@@ -650,54 +724,98 @@ export default function SymphonyStudio() {
                                     <div className="text-center py-20 text-gray-600 font-mono text-sm animate-pulse">
                                         &gt; Loading global avatar database...
                                     </div>
-                                ) : filteredAvatars.length === 0 ? (
+                                ) : filteredAvatarGroups.length === 0 ? (
                                     <div className="text-center py-20 text-gray-600 font-mono text-sm">
-                                        &gt; No avatars match the selected filters.
+                                        &gt; No avatars match the selected structural filters.
                                     </div>
                                 ) : (
                                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                                        {filteredAvatars.map(avatar => (
-                                            <div 
-                                                key={avatar.avatar_id}
-                                                onClick={() => {
-                                                    if (selectedAvatarIds.includes(avatar.avatar_id)) {
-                                                        setSelectedAvatarIds(prev => prev.filter(id => id !== avatar.avatar_id));
-                                                    } else {
-                                                        if (selectedAvatarIds.length >= 5) {
-                                                            alert("You can only select up to 5 Digital Actors safely simultaneously for a direct mapped TikTok request.");
-                                                        } else {
-                                                            setSelectedAvatarIds(prev => [...prev, avatar.avatar_id]);
-                                                        }
-                                                    }
-                                                }}
-                                                className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${selectedAvatarIds.includes(avatar.avatar_id) ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]' : 'border-transparent hover:border-gray-600'}`}
-                                            >
-                                                <img 
-                                                    src={avatar.avatar_thumbnail} 
-                                                    alt={avatar.avatar_name}
-                                                    className="w-full h-auto object-cover aspect-[9/16]"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                                <div className="absolute bottom-0 left-0 right-0 p-3">
-                                                    <p className="text-white font-mono text-xs font-bold truncate">{avatar.avatar_name}</p>
-                                                    
-                                                    <div className="flex gap-1 mt-1 overflow-x-hidden">
-                                                      {avatar.tag_groups?.map((group: any, idx: number) => (
-                                                          <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
-                                                              {group.tags?.[0]}
-                                                          </span>
-                                                      ))}
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Select overlay */}
-                                                {selectedAvatarIds.includes(avatar.avatar_id) && (
-                                                    <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
-                                                        <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Selected</div>
-                                                    </div>
-                                                )}
+                                        {filteredAvatarGroups.map(group => {
+                                            const isSelected = group.looks.some(l => selectedAvatarIds.includes(l.avatar_id));
+                                            
+                                            return (
+                                              <div 
+                                                  key={group.groupId}
+                                                  onClick={() => setActiveAvatarGroup(group)}
+                                                  className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${isSelected ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'border-transparent hover:border-gray-600'}`}
+                                              >
+                                                  <img 
+                                                      src={group.representativeAvatar.avatar_thumbnail} 
+                                                      alt={group.name}
+                                                      className="w-full h-auto object-cover aspect-[9/16]"
+                                                  />
+                                                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                                                  
+                                                  <div className="absolute bottom-0 left-0 right-0 p-3">
+                                                      <p className="text-white font-mono text-xs font-bold truncate">{group.name}</p>
+                                                      
+                                                      <div className="flex gap-1 mt-1 overflow-x-hidden">
+                                                        {group.representativeAvatar.tag_groups?.filter((g: any) => g.tag_type !== 'identity').map((g: any, idx: number) => (
+                                                            <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
+                                                                {g.tags?.[0]}
+                                                            </span>
+                                                        ))}
+                                                      </div>
+                                                  </div>
+                                                  
+                                                  <div className="absolute bottom-2 left-2 bg-black/60 backdrop-blur text-white text-[10px] font-mono px-2 py-0.5 rounded-md border border-white/20">
+                                                      {group.looks.length} looks
+                                                  </div>
+                                                  
+                                                  {/* Select overlay */}
+                                                  {isSelected && (
+                                                      <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
+                                                          <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Group Selected</div>
+                                                      </div>
+                                                  )}
+                                              </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                
+                                {/* Avatar Details Sidepanel Variant Chooser */}
+                                {activeAvatarGroup && (
+                                    <div className="fixed top-0 right-0 bottom-0 w-[400px] bg-[#111] border-l border-gray-800 shadow-[0_0_50px_rgba(0,0,0,0.8)] z-[60] flex flex-col transform transition-transform animate-in slide-in-from-right duration-300">
+                                       <div className="flex justify-between items-center p-5 border-b border-gray-800 shrink-0">
+                                            <div>
+                                                <h3 className="text-gray-100 text-lg font-sans font-semibold tracking-tight">Avatar details</h3>
+                                                <p className="text-gray-500 text-xs font-mono mt-1 flex items-center gap-2">Avatar ID <span className="text-gray-400">{activeAvatarGroup.groupId}</span></p>
                                             </div>
-                                        ))}
+                                            <button onClick={() => setActiveAvatarGroup(null)} className="text-gray-500 hover:text-white p-2 rounded hover:bg-gray-800 transition-colors bg-[#0a0a0a] border border-gray-800 cursor-pointer"><X size={16}/></button>
+                                        </div>
+                                        
+                                        <div className="p-5 flex flex-col gap-4 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-800">
+                                            <h4 className="text-gray-300 font-sans text-sm font-semibold">{activeAvatarGroup.looks.length} looks</h4>
+                                            
+                                            <div className="grid grid-cols-2 gap-3">
+                                                {activeAvatarGroup.looks.map(look => {
+                                                    const isSelected = selectedAvatarIds.includes(look.avatar_id);
+                                                    return (
+                                                        <div key={look.avatar_id} 
+                                                             onClick={() => {
+                                                                if (isSelected) {
+                                                                    setSelectedAvatarIds(prev => prev.filter(id => id !== look.avatar_id));
+                                                                } else {
+                                                                    if (selectedAvatarIds.length >= 5) alert("Max 5 avatars safely supported simultaneously for API limits.");
+                                                                    else setSelectedAvatarIds(prev => [...prev, look.avatar_id]);
+                                                                }
+                                                             }}
+                                                             className={`relative aspect-[9/16] rounded-xl overflow-hidden cursor-pointer border-2 transition-all group ${isSelected ? 'border-teal-500' : 'border-transparent hover:border-gray-600'}`}>
+                                                            <img src={look.avatar_thumbnail} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                                                            
+                                                            <div className="absolute top-2 right-2 w-5 h-5 rounded-full shadow-lg z-10 flex items-center justify-center transition-all bg-black/40 border border-gray-400 backdrop-blur-sm">
+                                                                {isSelected && <div className="w-3 h-3 rounded-full bg-teal-400 shadow-[0_0_10px_rgba(45,212,191,0.8)]"></div>}
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="p-5 border-t border-gray-800 bg-[#0a0a0a] shrink-0">
+                                            <Button onClick={() => setActiveAvatarGroup(null)} className="w-full bg-[#20B2AA] hover:bg-[#1E9F98] text-white font-sans text-base shadow-lg h-12 rounded-lg font-medium">Continue</Button>
+                                        </div>
                                     </div>
                                 )}
                             </>
