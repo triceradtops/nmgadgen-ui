@@ -130,9 +130,9 @@ export default function StockVideoStudio() {
                 video_duration: videoDuration,
                 subtitle_enabled: true,
                 product_info_list: [{
-                    product_name: productName.slice(0, 50),
-                    product_description: productDesc.slice(0, 500),
-                    product_selling_points: points.length ? points : ["Standard product"]
+                    name: productName.slice(0, 50),
+                    description: productDesc.slice(0, 500),
+                    selling_points: points.length ? points : ["Standard product"]
                 }]
             }
         };
