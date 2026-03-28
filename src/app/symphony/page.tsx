@@ -287,7 +287,10 @@ export default function SymphonyStudio() {
                     avatar_id: aId,
                     script: script,
                     voice_id: assignedVoice,
-                    subtitle_enabled: subtitlesEnabled
+                    subtitle_enabled: subtitlesEnabled,
+                    subtitle_display: subtitlesEnabled,
+                    caption_enabled: subtitlesEnabled,
+                    show_captions: subtitlesEnabled
                 });
                 
                 mappedResultsUI.push({
@@ -350,17 +353,17 @@ export default function SymphonyStudio() {
     };
 
     const safeAvatars = avatars || [];
-    const industries = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'industry')?.tags || [])))];
-    const genders = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'gender')?.tags || [])))];
-    const scenes = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'scene')?.tags || [])))];
-    const regions = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'region')?.tags || [])))];
+    const industries = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'industry').flatMap((g: any) => g.tags) || [])))].filter(Boolean);
+    const genders = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'gender').flatMap((g: any) => g.tags) || [])))].filter(Boolean);
+    const scenes = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'scene').flatMap((g: any) => g.tags) || [])))].filter(Boolean);
+    const regions = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'region').flatMap((g: any) => g.tags) || [])))].filter(Boolean);
 
     const filteredAvatars = safeAvatars.filter(a => {
         if (searchQuery && !a.avatar_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !a.avatar_id?.includes(searchQuery)) return false;
-        if (filterIndustry !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'industry')?.tags?.includes(filterIndustry)) return false;
-        if (filterGender !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'gender')?.tags?.includes(filterGender)) return false;
-        if (filterScene !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'scene')?.tags?.includes(filterScene)) return false;
-        if (filterRegion !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'region')?.tags?.includes(filterRegion)) return false;
+        if (filterIndustry !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'industry' && g.tags?.includes(filterIndustry))) return false;
+        if (filterGender !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'gender' && g.tags?.includes(filterGender))) return false;
+        if (filterScene !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'scene' && g.tags?.includes(filterScene))) return false;
+        if (filterRegion !== "All" && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'region' && g.tags?.includes(filterRegion))) return false;
         return true;
     });
 
