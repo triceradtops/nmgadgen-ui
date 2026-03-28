@@ -14,6 +14,7 @@ interface BatchJob {
     imageUrl: string;
     status: 'PROCESSING' | 'SUCCESS' | 'FAILED';
     videoUrl?: string;
+    errorDetails?: string;
     startedAt: number;
 }
 
@@ -149,11 +150,23 @@ export default function ImageAnimationStudio() {
                 
                 newJobs.forEach((job: any) => pollResults(job.taskId));
             } else {
-                alert(`API Generation Error: ${JSON.stringify(data.detail || data)}`);
+                setBatchJobs(prev => [...prev, {
+                    taskId: `fail_api_${Date.now()}`,
+                    imageUrl,
+                    status: 'FAILED',
+                    errorDetails: data.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : "Immediate API Pipeline Reject",
+                    startedAt: Date.now()
+                }]);
                 setLoading(false);
             }
         } catch (e) {
-            alert(`Network failure calling the animation orchestrator.`);
+            setBatchJobs(prev => [...prev, {
+                taskId: `fail_net_${Date.now()}`,
+                imageUrl,
+                status: 'FAILED',
+                errorDetails: "Network failure calling the animation orchestrator.",
+                startedAt: Date.now()
+            }]);
             setLoading(false);
         }
     };
@@ -317,7 +330,10 @@ export default function ImageAnimationStudio() {
                                                 <source src={job.videoUrl} type="video/mp4" />
                                             </video>
                                         ) : job.status === 'FAILED' ? (
-                                            <div className="h-48 flex items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10">Generation Failed</div>
+                                            <div className="h-48 flex flex-col p-4 text-center items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10 gap-2 overflow-y-auto">
+                                                <span>Generation Failed</span>
+                                                {job.errorDetails && <span className="text-[10px] lowercase text-red-400 opacity-60 break-all">{job.errorDetails}</span>}
+                                            </div>
                                         ) : (
                                             <>
                                                 {/* eslint-disable-next-line @next/next/no-img-element */}

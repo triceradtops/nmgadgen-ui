@@ -15,6 +15,7 @@ interface BatchJob {
     status: 'PROCESSING' | 'SUCCESS' | 'FAILED';
     videoUrl?: string;
     subtitleUrl?: string;
+    errorDetails?: string;
     startedAt: number;
 }
 
@@ -159,11 +160,23 @@ export default function StockVideoStudio() {
                 
                 newJobs.forEach((job: any) => pollResults(job.taskId));
             } else {
-                alert(`API Error: ${JSON.stringify(data)}`);
+                setBatchJobs(prev => [...prev, {
+                    taskId: `fail_api_${Date.now()}`,
+                    productName: productName.trim() || 'Unknown Target',
+                    status: 'FAILED',
+                    errorDetails: data.detail ? (typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)) : "Immediate API Pipeline Reject",
+                    startedAt: Date.now()
+                }]);
                 setLoading(false);
             }
         } catch (e) {
-            alert(`Network failure submitting stock generation.`);
+            setBatchJobs(prev => [...prev, {
+                taskId: `fail_net_${Date.now()}`,
+                productName: productName.trim() || 'Unknown Target',
+                status: 'FAILED',
+                errorDetails: "Network failure calling the creative remux coordinator.",
+                startedAt: Date.now()
+            }]);
             setLoading(false);
         }
     };
@@ -339,7 +352,10 @@ export default function StockVideoStudio() {
                                                 )}
                                             </video>
                                         ) : job.status === 'FAILED' ? (
-                                            <div className="h-48 flex items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10">Render Hardware Failure</div>
+                                            <div className="h-48 flex flex-col p-4 text-center items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10 gap-2 overflow-y-auto">
+                                                <span>Generation Failed</span>
+                                                {job.errorDetails && <span className="text-[10px] lowercase text-red-400 opacity-60 break-all">{job.errorDetails}</span>}
+                                            </div>
                                         ) : (
                                             <div className="h-48 font-mono text-xs flex flex-col items-center justify-center gap-3 w-full animate-pulse text-teal-500">
                                                 <div className="w-8 h-8 rounded-full border-t-2 border-teal-500 animate-spin"></div>
