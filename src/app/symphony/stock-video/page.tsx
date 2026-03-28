@@ -50,7 +50,7 @@ export default function StockVideoStudio() {
         const fetchVoices = async () => {
             try {
                 const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/voices");
-                if (res.status === 200) {
+                if (res.ok) {
                     const data = await res.json();
                     if (data.status === "success" && data.data?.length > 0) {
                         setVoices(data.data.filter((v: any) => v.voice_id !== "None"));
@@ -278,7 +278,7 @@ export default function StockVideoStudio() {
                                     >
                                         <option value="" disabled>Select a voice</option>
                                         {voices.map((v, i) => (
-                                            <option key={i} value={v.voice_id}>{v.voice_name || v.voice_id} - {v.voice_tags?.find((t: any) => t.tag_type === 'Gender')?.tags?.[0] || 'Unknown'}</option>
+                                            <option key={i} value={v.voice_id}>{v.voice_name || v.voice_id} - {v.voice_tags?.find((t: any) => t.tag_type === 'Gender')?.tag_name || 'Unknown'}</option>
                                         ))}
                                     </select>
                                     {voiceId && voices.find(v => v.voice_id === voiceId)?.preview_audio && (
