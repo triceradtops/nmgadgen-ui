@@ -1,3 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable jsx-a11y/alt-text */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,13 +22,20 @@ export default function SymphonyStudio() {
     // Symphony Data
     const [avatars, setAvatars] = useState<any[]>([]);
     const [voices, setVoices] = useState<any[]>([]);
-    const [selectedAvatarId, setSelectedAvatarId] = useState<string | null>(null);
-    const [selectedVoiceId, setSelectedVoiceId] = useState<string>("");
+    const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([]);
+    const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>([]);
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
     
-    // Result
-    const [jobId, setJobId] = useState<string | null>(null);
-    const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+    // Result Tracking
+    type BatchJob = {
+        taskId: string;
+        avatarId: string;
+        voiceId: string;
+        status: string; // 'PROCESSING', 'SUCCESS', 'FAILED'
+        videoUrl: string | null;
+        errorDetails: string | null;
+    };
+    const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
     
     // Filters
     const [filterIndustry, setFilterIndustry] = useState("All");
@@ -60,7 +71,7 @@ export default function SymphonyStudio() {
                 const data = await res.json();
                 if (data.status === "success" && data.data?.length > 0) {
                     setVoices(data.data);
-                    setSelectedVoiceId(data.data[0].voice_id);
+                    setSelectedVoiceIds([data.data[0].voice_id]);
                     appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
                 }
             } catch (err) {}
@@ -69,26 +80,87 @@ export default function SymphonyStudio() {
         fetchVoices();
     }, []);
 
+    const updateJobState = (taskId: string, updates: Partial<BatchJob>) => {
+        setBatchJobs(prev => prev.map(job => job.taskId === taskId ? { ...job, ...updates } : job));
+    };
+
+    const pollResults = async (taskId: string) => {
+        const interval = setInterval(async () => {
+            try {
+                // Poll the dedicated Digital Avatar status endpoint
+                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/avatar/${taskId}`);
+                if (res.status === 200) {
+                    const data = await res.json();
+                    const tasks = data.list || [];
+                    
+                    if (tasks.length > 0) {
+                        const t = tasks[0];
+                        
+                        if (t.status === "SUCCESS") {
+                            appendLog(`[Task ${taskId.slice(-4)}] Render Complete. HD Video Online.`);
+                            updateJobState(taskId, {
+                                status: 'SUCCESS',
+                                videoUrl: t.preview_url || t.video_url || t.avatar_video_id
+                            });
+                            
+                            // Check completeness
+                            setBatchJobs(currentJobs => {
+                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'SUCCESS' } : job);
+                                if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
+                                return activeMap;
+                            });
+                            
+                            clearInterval(interval);
+                        } else if (t.status === "FAILED") {
+                            const errorObj = t.fail_reason || t.error_msg || t.message || t.fail_msg || JSON.stringify(t);
+                            appendLog(`[Task ${taskId.slice(-4)}] CRITICAL ERROR: ${errorObj}`);
+                            updateJobState(taskId, {
+                                status: 'FAILED',
+                                errorDetails: String(errorObj)
+                            });
+                            
+                            // Check completeness
+                            setBatchJobs(currentJobs => {
+                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'FAILED' } : job);
+                                if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
+                                return activeMap;
+                            });
+                            
+                            clearInterval(interval);
+                        }
+                    }
+                }
+            } catch (e) {
+                // Keep polling
+            }
+        }, 5000);
+    };
+
     const handleGenerate = async () => {
-        if (!selectedAvatarId) {
-            alert("Please select an avatar first.");
-            return;
-        }
+        const totalPermutations = selectedAvatarIds.length * selectedVoiceIds.length;
+        if (selectedAvatarIds.length === 0 || selectedVoiceIds.length === 0 || totalPermutations > 10) return;
         
         setLoading(true);
-        setJobId(null);
-        setFinalVideoUrl(null);
-        setTerminalLogs(["[SYSTEM] Generation Job Started..."]);
+        setBatchJobs([]);
+        setTerminalLogs(["[SYSTEM] Batch Generation Matrix Initialized..."]);
         setIsConfigOpen(false);
 
         try {
-            appendLog(`Dispatching Avatar ID: ${selectedAvatarId} with Voice: ${selectedVoiceId}`);
+            const combos: any[] = [];
+            for (const aId of selectedAvatarIds) {
+                for (const vId of selectedVoiceIds) {
+                    combos.push({
+                        avatar_id: aId,
+                        script: script,
+                        voice_id: vId
+                    });
+                }
+            }
+            
+            appendLog(`Dispatching payload with ${combos.length} permutations...`);
+            
             const payload = {
-                material_packages: [{
-                    avatar_id: selectedAvatarId,
-                    script: script,
-                    voice_id: selectedVoiceId
-                }]
+                material_packages: combos
             };
 
             const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatar/generate", {
@@ -99,60 +171,39 @@ export default function SymphonyStudio() {
 
             const data = await res.json();
             
-            // Extract the task ID depending on TikTok API's subtle task wrapping
-            let createdTaskId = null;
+            let createdTasks: any[] = [];
             if (data.task_data?.list?.length > 0) {
-                createdTaskId = data.task_data.list[0].task_id;
+                createdTasks = data.task_data.list;
             } else if (data.task_data?.task_id) {
-                createdTaskId = data.task_data.task_id;
+                createdTasks = [{ task_id: data.task_data.task_id }];
             }
 
-            if (createdTaskId) {
-                appendLog(`Worker Job Dispatched. Task ID: ${createdTaskId}`);
-                setJobId(createdTaskId);
-                pollResults(createdTaskId);
+            if (createdTasks.length > 0) {
+                appendLog(`Worker Cluster Dispatched. Registered ${createdTasks.length} tasks.`);
+                
+                const newJobs: BatchJob[] = createdTasks.map((t: any, idx: number) => ({
+                    taskId: t.task_id,
+                    avatarId: combos[idx]?.avatar_id || "Unknown",
+                    voiceId: combos[idx]?.voice_id || "Unknown",
+                    status: 'PROCESSING',
+                    videoUrl: null,
+                    errorDetails: null
+                }));
+                
+                setBatchJobs(newJobs);
+                
+                // Immediately disable global loader so we can see the Matrix render grid locally.
+                setLoading(false);
+                
+                newJobs.forEach(job => pollResults(job.taskId));
             } else {
                 appendLog(`CRITICAL ERROR: ${JSON.stringify(data)}`);
                 setLoading(false);
             }
         } catch (e) {
-            appendLog(`CRITICAL ERROR: Network failure submitting job.`);
+            appendLog(`CRITICAL ERROR: Network failure submitting batch.`);
             setLoading(false);
         }
-    };
-
-    const pollResults = async (id: string) => {
-        const interval = setInterval(async () => {
-            try {
-                // Poll the dedicated Digital Avatar status endpoint
-                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/avatar/${id}`);
-                if (res.status === 200) {
-                    const data = await res.json();
-                    const tasks = data.list || [];
-                    
-                    if (tasks.length > 0) {
-                        const t = tasks[0];
-                        appendLog(`Polling worker... Status: ${t.status || 'PROCESSING'}`);
-                        
-                        if (t.status === "SUCCESS") {
-                            appendLog("Job rendering complete. HD Video Available.");
-                            setFinalVideoUrl(t.preview_url || t.video_url || t.avatar_video_id);
-                            setLoading(false);
-                            clearInterval(interval);
-                        } else if (t.status === "FAILED") {
-                            const errorObj = t.fail_reason || t.error_msg || t.message || t.fail_msg || JSON.stringify(t);
-                            appendLog(`CRITICAL ERROR: TikTok rejected job: ${errorObj}`);
-                            setLoading(false);
-                            clearInterval(interval);
-                        }
-                    } else {
-                        appendLog("Polling worker... awaiting TikTok queue placement...");
-                    }
-                }
-            } catch (e) {
-                // Keep polling
-            }
-        }, 5000);
     };
 
     const safeAvatars = avatars || [];
@@ -220,25 +271,40 @@ export default function SymphonyStudio() {
                                 </div>
                                 
                                 <div className="space-y-2 pt-2">
-                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Voice Model</Label>
-                                    <select
-                                        value={selectedVoiceId}
-                                        onChange={e => setSelectedVoiceId(e.target.value)}
-                                        className="flex h-10 w-full rounded-md border border-teal-900/50 bg-[#0a0a0a] text-teal-400 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
-                                    >
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Voice Models (Multi-Select)</Label>
+                                    <div className="h-40 overflow-y-auto bg-[#0a0a0a] border border-teal-900/50 rounded-md p-2 space-y-1 scrollbar-thin scrollbar-thumb-teal-900/50">
                                         {voices.map(v => (
-                                            <option key={v.voice_id} value={v.voice_id}>
-                                                {v.voice_name ? v.voice_name : v.voice_id}
-                                            </option>
+                                            <div 
+                                                key={v.voice_id}
+                                                onClick={() => {
+                                                    if (selectedVoiceIds.includes(v.voice_id)) {
+                                                        setSelectedVoiceIds(prev => prev.filter(id => id !== v.voice_id));
+                                                    } else {
+                                                        setSelectedVoiceIds(prev => [...prev, v.voice_id]);
+                                                    }
+                                                }}
+                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${selectedVoiceIds.includes(v.voice_id) ? 'bg-teal-900/40 border border-teal-500 text-teal-300' : 'bg-transparent border border-transparent hover:bg-gray-900 text-gray-400'}`}
+                                            >
+                                                <span className="text-xs font-mono truncate">{v.voice_name ? v.voice_name : v.voice_id}</span>
+                                                {selectedVoiceIds.includes(v.voice_id) && <div className="w-2 h-2 rounded-full bg-teal-500"></div>}
+                                            </div>
                                         ))}
-                                    </select>
+                                    </div>
+                                    <p className="text-xs text-teal-500 font-mono text-right">{selectedVoiceIds.length} Voices Selected</p>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Button onClick={handleGenerate} disabled={loading || !selectedAvatarId} className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50">
-                            {loading ? "[ RENDERING... ]" : "[ GENERATE_VIDEO ]"}
-                        </Button>
+                        <div className="space-y-2">
+                            {(() => {
+                                const perms = selectedAvatarIds.length * selectedVoiceIds.length;
+                                return (
+                                    <Button onClick={handleGenerate} disabled={loading || perms === 0 || perms > 10} className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all">
+                                        {loading ? "[ CONFIGURING BATCH... ]" : perms > 10 ? "[ LIMIT_EXCEEDED (MAX 10) ]" : `[ GENERATE_${perms}_VIDEOS ]`}
+                                    </Button>
+                                );
+                            })()}
+                        </div>
                     </div>
                 </div>
 
@@ -249,29 +315,82 @@ export default function SymphonyStudio() {
                             <div className="flex flex-col items-center justify-center p-24 text-center space-y-4">
                                 <Video className="w-12 h-12 text-teal-500 animate-pulse" />
                                 <p className="text-sm text-teal-400 font-mono uppercase tracking-widest text-shadow">TikTok Server Farm Active</p>
-                                <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Lip-sync rendering in progress...</p>
+                                <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Dispatching Concurrent Node Cluster...</p>
                             </div>
                         )}
 
-                        {!loading && finalVideoUrl && (
-                            <div className="flex flex-col items-center justify-center p-8 bg-black border border-teal-900/40 rounded-xl space-y-6">
-                                <video 
-                                    src={finalVideoUrl} 
-                                    controls 
-                                    autoPlay 
-                                    className="max-h-[600px] rounded-lg shadow-2xl shadow-teal-900/20 border border-gray-800"
-                                />
-                                <div className="text-center font-mono text-xs p-3 bg-[#111] rounded-lg border border-gray-800 w-full break-all text-gray-400">
-                                    {finalVideoUrl}
+                        {!loading && batchJobs.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
+                                    <h2 className="text-teal-400 font-mono uppercase tracking-widest text-sm font-bold flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div> Active Matrix Sequence
+                                    </h2>
+                                    <Button onClick={() => setBatchJobs([])} variant="outline" className="border-teal-500/50 text-teal-400 hover:text-white font-mono text-xs hover:bg-teal-900/40 h-8">
+                                        [ RESET_WORKSPACE ]
+                                    </Button>
+                                </div>
+                            
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                                    {batchJobs.map((job) => {
+                                        const av = avatars.find(a => a.avatar_id === job.avatarId);
+                                        const vc = voices.find(v => v.voice_id === job.voiceId);
+                                        const avName = av?.avatar_name || job.avatarId;
+                                        const vcName = vc?.voice_name || job.voiceId;
+                                        
+                                        return (
+                                            <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/50' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                                <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
+                                                    <div className="flex flex-col overflow-hidden mr-2">
+                                                        <span className="text-teal-400 font-bold font-mono text-[10px] truncate">{avName}</span>
+                                                        <span className="text-gray-500 font-mono text-[9px] uppercase tracking-wider truncate">{vcName}</span>
+                                                    </div>
+                                                    <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
+                                                        {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Processing</span></>}
+                                                        {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Success</span></>}
+                                                        {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Failed</span></>}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
+                                                    {job.status === 'SUCCESS' && job.videoUrl ? (
+                                                        <video src={job.videoUrl} controls autoPlay className="w-full h-full object-cover shadow-2xl" />
+                                                    ) : (
+                                                        <>
+                                                            {av?.avatar_thumbnail && (
+                                                                <img src={av.avatar_thumbnail} className={`w-full h-full object-cover transition-all duration-1000 ${job.status === 'FAILED' ? 'grayscale opacity-20 blur-sm' : 'grayscale opacity-40 blur-[2px]'}`} />
+                                                            )}
+                                                            <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
+                                                                {job.status === 'PROCESSING' && (
+                                                                    <div className="bg-black/80 p-4 rounded-xl border border-gray-800 flex flex-col items-center">
+                                                                        <Video className="w-8 h-8 text-teal-500/50 animate-pulse mb-3" />
+                                                                        <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase">Executing Node Sequence...</span>
+                                                                    </div>
+                                                                )}
+                                                                {job.status === 'FAILED' && (
+                                                                    <div className="bg-black/90 p-4 rounded-xl border border-red-900 flex flex-col items-center">
+                                                                        <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
+                                                                        <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
 
-                        {!loading && !finalVideoUrl && (
+                        {!loading && batchJobs.length === 0 && (
                             <>
                                 <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Select Digital Actor</h2>
-                                    <span className="text-xs text-teal-500 font-mono">{filteredAvatars.length} Models Online</span>
+                                    <div className="flex items-center gap-4">
+                                        <span className="text-xs text-teal-500 font-mono">{selectedAvatarIds.length} Actor(s) Selected</span>
+                                        <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatars.length} Models Array</span>
+                                    </div>
                                 </div>
                                 
                                 {avatars.length > 0 && (
@@ -314,8 +433,14 @@ export default function SymphonyStudio() {
                                         {filteredAvatars.map(avatar => (
                                             <div 
                                                 key={avatar.avatar_id}
-                                                onClick={() => setSelectedAvatarId(avatar.avatar_id)}
-                                                className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${selectedAvatarId === avatar.avatar_id ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]' : 'border-transparent hover:border-gray-600'}`}
+                                                onClick={() => {
+                                                    if (selectedAvatarIds.includes(avatar.avatar_id)) {
+                                                        setSelectedAvatarIds(prev => prev.filter(id => id !== avatar.avatar_id));
+                                                    } else {
+                                                        setSelectedAvatarIds(prev => [...prev, avatar.avatar_id]);
+                                                    }
+                                                }}
+                                                className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${selectedAvatarIds.includes(avatar.avatar_id) ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]' : 'border-transparent hover:border-gray-600'}`}
                                             >
                                                 <img 
                                                     src={avatar.avatar_thumbnail} 
@@ -335,10 +460,12 @@ export default function SymphonyStudio() {
                                                     </div>
                                                 </div>
                                                 
-                                                {/* Play Button Overlay on Hover */}
-                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                    <Play className="w-10 h-10 text-white/80 ml-1" />
-                                                </div>
+                                                {/* Select overlay */}
+                                                {selectedAvatarIds.includes(avatar.avatar_id) && (
+                                                    <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
+                                                        <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Selected</div>
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
