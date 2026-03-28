@@ -39,6 +39,7 @@ export default function SymphonyStudio() {
     const [selectedMaleVoiceId, setSelectedMaleVoiceId] = useState<string | null>(null);
     const [selectedFemaleVoiceId, setSelectedFemaleVoiceId] = useState<string | null>(null);
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
+    const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
     
     // Result Tracking
     type BatchJob = {
@@ -283,7 +284,8 @@ export default function SymphonyStudio() {
                 combos.push({
                     avatar_id: aId,
                     script: script,
-                    voice_id: assignedVoice
+                    voice_id: assignedVoice,
+                    subtitle_enabled: subtitlesEnabled
                 });
                 
                 mappedResultsUI.push({
@@ -401,6 +403,20 @@ export default function SymphonyStudio() {
                                     <div className="flex justify-between items-center text-xs text-gray-600 font-mono">
                                         <p>The Avatar will naturally lip-sync this exact text.</p>
                                         <span className={script.length > 1900 ? "text-red-400 font-bold" : ""}>{script.length} / 2000</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Native Subtitle Settings Toggle */}
+                                <div 
+                                    className="py-1 flex items-center justify-between cursor-pointer group" 
+                                    onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
+                                >
+                                    <div className="flex flex-col">
+                                        <Label className="font-bold text-gray-200 font-mono text-sm cursor-pointer group-hover:text-teal-400 transition-colors">Show captions</Label>
+                                        <p className="text-gray-500 font-mono text-[10px] mt-0.5">Display the script's text on the screen.</p>
+                                    </div>
+                                    <div className={`w-10 h-6 shrink-0 flex items-center rounded-full p-1 transition-colors duration-200 ${subtitlesEnabled ? 'bg-[#3CD4B5]' : 'bg-gray-800 border border-gray-700'}`}>
+                                        <div className={`w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${subtitlesEnabled ? 'translate-x-4 bg-[#111]' : 'translate-x-0 bg-gray-500'}`} />
                                     </div>
                                 </div>
                                 
