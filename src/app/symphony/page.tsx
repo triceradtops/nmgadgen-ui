@@ -696,7 +696,6 @@ export default function SymphonyStudio() {
                                             className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
                                         >
                                             AI-generated
-                                            <span className="bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider">New</span>
                                             {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
                                         </button>
                                     </div>
