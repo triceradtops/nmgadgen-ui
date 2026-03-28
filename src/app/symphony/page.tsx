@@ -159,29 +159,44 @@ export default function SymphonyStudio() {
             
             appendLog(`Dispatching payload with ${combos.length} permutations...`);
             
-            const payload = {
-                material_packages: combos
-            };
-
-            const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatar/generate", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-
-            const data = await res.json();
+            // TikTok strictly limits `material_packages` arrays to exactly 5 elements per API request!
+            // To honor our 10 limit while respecting TikTok's rule, we chunk the array.
+            const chunks: any[][] = [];
+            for (let i = 0; i < combos.length; i += 5) {
+                chunks.push(combos.slice(i, i + 5));
+            }
             
-            let createdTasks: any[] = [];
-            if (data.task_data?.list?.length > 0) {
-                createdTasks = data.task_data.list;
-            } else if (data.task_data?.task_id) {
-                createdTasks = [{ task_id: data.task_data.task_id }];
+            let allCreatedTasks: any[] = [];
+            let chunkError = null;
+
+            for (const [idx, chunk] of chunks.entries()) {
+                appendLog(`Dispatching API chunk ${idx + 1}/${chunks.length} (${chunk.length} items)...`);
+                
+                const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatar/generate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ material_packages: chunk }),
+                });
+
+                const data = await res.json();
+                
+                if (data.task_data?.list?.length > 0) {
+                    allCreatedTasks = [...allCreatedTasks, ...data.task_data.list];
+                } else if (data.task_data?.task_id) {
+                    allCreatedTasks.push({ task_id: data.task_data.task_id });
+                } else {
+                    chunkError = data;
+                    break;
+                }
             }
 
-            if (createdTasks.length > 0) {
-                appendLog(`Worker Cluster Dispatched. Registered ${createdTasks.length} tasks.`);
+            if (allCreatedTasks.length > 0) {
+                appendLog(`Worker Cluster Dispatched. Registered ${allCreatedTasks.length} total tasks.`);
+                if (chunkError) {
+                    appendLog(`WARNING: A partial chunk failed to submit: ${JSON.stringify(chunkError)}`);
+                }
                 
-                const newJobs: BatchJob[] = createdTasks.map((t: any, idx: number) => ({
+                const newJobs: BatchJob[] = allCreatedTasks.map((t: any, idx: number) => ({
                     taskId: t.task_id,
                     avatarId: combos[idx]?.avatar_id || "Unknown",
                     voiceId: combos[idx]?.voice_id || "Unknown",
@@ -191,13 +206,11 @@ export default function SymphonyStudio() {
                 }));
                 
                 setBatchJobs(newJobs);
-                
-                // Immediately disable global loader so we can see the Matrix render grid locally.
                 setLoading(false);
                 
                 newJobs.forEach(job => pollResults(job.taskId));
             } else {
-                appendLog(`CRITICAL ERROR: ${JSON.stringify(data)}`);
+                appendLog(`CRITICAL ERROR: ${JSON.stringify(chunkError || "Unknown error")}`);
                 setLoading(false);
             }
         } catch (e) {
