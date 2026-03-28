@@ -192,7 +192,7 @@ export default function SymphonyStudio() {
                             updateJobState(taskId, {
                                 status: 'SUCCESS',
                                 videoUrl: t.preview_url || t.video_url || t.avatar_video_id,
-                                subtitleUrl: t.subtitle_url || t.caption_url || null
+                                subtitleUrl: t.srt_file_url || t.subtitle_url || t.caption_url || null
                             });
                             
                             setBatchJobs(currentJobs => {
@@ -631,7 +631,16 @@ export default function SymphonyStudio() {
                                                             crossOrigin="anonymous"
                                                             className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30"
                                                         >
-                                                            {job.subtitleUrl && <track kind="captions" src={job.subtitleUrl} srcLang="en" label="English" default />}
+                                                            <source src={job.videoUrl} type="video/mp4" />
+                                                            {job.subtitleUrl && (
+                                                                <track 
+                                                                    kind="captions" 
+                                                                    src={`/api/captions?url=${encodeURIComponent(job.subtitleUrl)}`} 
+                                                                    srcLang="en" 
+                                                                    label="English" 
+                                                                    default 
+                                                                />
+                                                            )}
                                                         </video>
                                                     ) : (
                                                         <>
