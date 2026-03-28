@@ -210,9 +210,13 @@ export default function SymphonyStudio() {
                                         value={script}
                                         onChange={e => setScript(e.target.value)}
                                         rows={4}
-                                        className="bg-[#0a0a0a] border-teal-900/50 text-white focus:ring-teal-500 font-mono text-xs"
+                                        maxLength={2000}
+                                        className="bg-[#0a0a0a] border-teal-900/50 text-white focus:ring-teal-500 font-mono text-xs resize-none"
                                     />
-                                    <p className="text-xs text-gray-600 font-mono">The Avatar will naturally lip-sync this exact text.</p>
+                                    <div className="flex justify-between items-center text-xs text-gray-600 font-mono">
+                                        <p>The Avatar will naturally lip-sync this exact text.</p>
+                                        <span className={script.length > 1900 ? "text-red-400 font-bold" : ""}>{script.length} / 2000</span>
+                                    </div>
                                 </div>
                                 
                                 <div className="space-y-2 pt-2">
