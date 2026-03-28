@@ -60,6 +60,10 @@ export default function SymphonyStudio() {
     const [filterScene, setFilterScene] = useState("All");
     const [filterRegion, setFilterRegion] = useState("All");
     const [searchQuery, setSearchQuery] = useState("");
+    
+    // Voice Filters
+    const [voiceFilterLanguage, setVoiceFilterLanguage] = useState("All");
+    const [voiceFilterAge, setVoiceFilterAge] = useState("All");
 
     const appendLog = (msg: string) => {
         setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -165,9 +169,33 @@ export default function SymphonyStudio() {
     const needsMaleVoice = selectedMaleAvatars.length > 0 || selectedUnknownAvatars.length > 0;
     const needsFemaleVoice = selectedFemaleAvatars.length > 0;
     
-    // Extracted global list subsets mapped directly to tags dynamically
-    const maleVoices = voices.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Male'));
-    const femaleVoices = voices.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Female'));
+    const filterableLanguages = ["All", ...Array.from(new Set(voices.map(v => v.voice_tags?.find((t: any) => t.tag_type === 'Nation')?.tag_name).filter(Boolean)))];
+    const filterableAges = ["All", ...Array.from(new Set(voices.map(v => v.voice_tags?.find((t: any) => t.tag_type === 'Age')?.tag_name).filter(Boolean)))];
+    
+    const formatVoiceOption = (v: any) => {
+        const nation = v.voice_tags?.find((t: any) => t.tag_type === 'Nation')?.tag_name;
+        const age = v.voice_tags?.find((t: any) => t.tag_type === 'Age')?.tag_name;
+        const chunks = [];
+        if (nation) chunks.push(nation);
+        if (age) chunks.push(age.replace(/_/g, ' '));
+        return `${v.voice_name || v.voice_id}${chunks.length > 0 ? ` - ${chunks.join(" · ")}` : ""}`;
+    };
+    
+    // Extracted global list subsets mapped directly to tags dynamically + explicit user filtering
+    const maleVoices = voices.filter((v: any) => {
+        if (!v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Male')) return false;
+        if (voiceFilterLanguage !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Nation' && t.tag_name === voiceFilterLanguage)) return false;
+        if (voiceFilterAge !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Age' && t.tag_name === voiceFilterAge)) return false;
+        return true;
+    });
+    
+    const femaleVoices = voices.filter((v: any) => {
+        if (!v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Female')) return false;
+        if (voiceFilterLanguage !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Nation' && t.tag_name === voiceFilterLanguage)) return false;
+        if (voiceFilterAge !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Age' && t.tag_name === voiceFilterAge)) return false;
+        return true;
+    });
+    
     const fallbackMaleVoices = maleVoices.length > 0 ? maleVoices : voices;
 
     const handleGenerate = async () => {
@@ -321,6 +349,26 @@ export default function SymphonyStudio() {
                                     </div>
                                 </div>
                                 
+                                {/* Dynamic Voice Filter Row */}
+                                {(needsMaleVoice || needsFemaleVoice) && (
+                                    <div className="flex gap-2 pt-2 border-t border-teal-900/10">
+                                        <select
+                                            value={voiceFilterLanguage}
+                                            onChange={e => setVoiceFilterLanguage(e.target.value)}
+                                            className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-teal-900/50 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-teal-500"
+                                        >
+                                            {filterableLanguages.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'All Languages' : opt}</option>)}
+                                        </select>
+                                        <select
+                                            value={voiceFilterAge}
+                                            onChange={e => setVoiceFilterAge(e.target.value)}
+                                            className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-teal-900/50 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-teal-500 capitalize"
+                                        >
+                                            {filterableAges.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'All Ages' : (opt as string).replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                
                                 {/* Dynamic Voice Selectors mapped strictly directly against selected Avatars Matrix logic */}
                                 {needsMaleVoice && (
                                     <div className="space-y-2 pt-2 border-t border-teal-900/10">
@@ -335,7 +383,7 @@ export default function SymphonyStudio() {
                                         >
                                             {fallbackMaleVoices.map((v: any) => (
                                                 <option key={v.voice_id} value={v.voice_id}>
-                                                    {v.voice_name ? v.voice_name : v.voice_id}
+                                                    {formatVoiceOption(v)}
                                                 </option>
                                             ))}
                                         </select>
@@ -352,7 +400,7 @@ export default function SymphonyStudio() {
                                         >
                                             {femaleVoices.map((v: any) => (
                                                 <option key={v.voice_id} value={v.voice_id}>
-                                                    {v.voice_name ? v.voice_name : v.voice_id}
+                                                    {formatVoiceOption(v)}
                                                 </option>
                                             ))}
                                         </select>
