@@ -222,7 +222,8 @@ export default function StockVideoStudio() {
                                         value={productName}
                                         onChange={e => setProductName(e.target.value)}
                                         placeholder="e.g., Hydrating Serum" 
-                                        className="bg-[#0a0a0a] border-gray-700 font-mono text-sm focus-visible:ring-teal-500" 
+                                        style={{ color: "white" }}
+                                        className="bg-[#0a0a0a] border-gray-700 text-white font-mono text-sm focus-visible:ring-teal-500" 
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -232,7 +233,8 @@ export default function StockVideoStudio() {
                                         onChange={e => setProductDesc(e.target.value)}
                                         rows={3}
                                         placeholder="A detailed sentence on what this product does..."
-                                        className="bg-[#0a0a0a] border-gray-700 text-sm font-sans focus-visible:ring-teal-500 resize-none"
+                                        style={{ color: "white" }}
+                                        className="bg-[#0a0a0a] border-gray-700 text-white text-sm font-sans focus-visible:ring-teal-500 resize-none"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -241,7 +243,8 @@ export default function StockVideoStudio() {
                                         value={sellingPoints}
                                         onChange={e => setSellingPoints(e.target.value)}
                                         rows={4}
-                                        className="bg-[#0a0a0a] border-gray-700 text-xs font-mono focus-visible:ring-teal-500 resize-none whitespace-pre"
+                                        style={{ color: "white" }}
+                                        className="bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono focus-visible:ring-teal-500 resize-none whitespace-pre"
                                     />
                                 </div>
                             </CardContent>
@@ -257,6 +260,7 @@ export default function StockVideoStudio() {
                                     <select 
                                         value={voiceId} 
                                         onChange={e => setVoiceId(e.target.value)} 
+                                        style={{ color: "white" }}
                                         className="w-full h-10 px-3 rounded-md bg-[#0a0a0a] border border-gray-700 text-sm text-gray-200 outline-none focus:ring-1 focus:ring-teal-500"
                                     >
                                         <option value="" disabled>Select a voice</option>
@@ -280,6 +284,7 @@ export default function StockVideoStudio() {
                                     <select 
                                         value={videoDuration} 
                                         onChange={e => setVideoDuration(e.target.value)} 
+                                        style={{ color: "white" }}
                                         className="w-full h-10 px-3 rounded-md bg-[#0a0a0a] border border-gray-700 text-sm font-mono text-gray-200 outline-none"
                                     >
                                         <option value="RECOMMENDED">AI Flexible</option>

@@ -245,6 +245,7 @@ export default function ImageAnimationStudio() {
                                         value={imageUrl}
                                         onChange={e => setImageUrl(e.target.value)}
                                         placeholder="https://..." 
+                                        style={{ color: "white", caretColor: "white" }}
                                         className="bg-[#0a0a0a] border-gray-700 font-mono text-xs text-teal-400 focus-visible:ring-teal-500" 
                                     />
                                 </div>
@@ -263,7 +264,8 @@ export default function ImageAnimationStudio() {
                                         onChange={e => setBackgroundPrompt(e.target.value)}
                                         rows={3}
                                         placeholder="E.g., A minimalist white marble pedestal inside a neon studio room..."
-                                        className="bg-[#0a0a0a] border-gray-700 text-xs font-sans focus-visible:ring-teal-500 resize-none"
+                                        style={{ color: "white", caretColor: "white" }}
+                                        className="bg-[#0a0a0a] border-gray-700 text-white text-xs font-sans focus-visible:ring-teal-500 resize-none"
                                     />
                                 </div>
                                 <div className="space-y-2">
@@ -273,6 +275,7 @@ export default function ImageAnimationStudio() {
                                         onChange={e => setAnimationPrompt(e.target.value)}
                                         rows={3}
                                         placeholder="E.g., Hard track left, fluid zoom toward the glowing product..."
+                                        style={{ color: "white", caretColor: "white" }}
                                         className="bg-[#0a0a0a] border-gray-700 text-xs font-sans text-teal-300 focus-visible:ring-teal-500 resize-none"
                                     />
                                 </div>
