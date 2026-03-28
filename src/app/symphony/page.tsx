@@ -527,7 +527,7 @@ export default function SymphonyStudio() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
-                    <div className="max-w-6xl mx-auto space-y-6">
+                    <div className="max-w-[1800px] mx-auto space-y-6">
                         {loading && (
                             <div className="flex flex-col items-center justify-center p-24 text-center space-y-4 shadow-xl">
                                 <Video className="w-12 h-12 text-teal-500 animate-pulse" />
