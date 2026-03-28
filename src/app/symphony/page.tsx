@@ -220,9 +220,9 @@ export default function SymphonyStudio() {
     };
 
     // Derived Selection Arrays based on live tag evaluation
-    const selectedMaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type === 'gender' && g.tags?.includes('Male')));
-    const selectedFemaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type === 'gender' && g.tags?.includes('Female')));
-    const selectedUnknownAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && !a.tag_groups?.some((g: any) => g.tag_type === 'gender' && (g.tags?.includes('Male') || g.tags?.includes('Female'))));
+    const selectedMaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'gender' && g.tags?.includes('Male')));
+    const selectedFemaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'gender' && g.tags?.includes('Female')));
+    const selectedUnknownAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && !a.tag_groups?.some((g: any) => g.tag_type?.toLowerCase() === 'gender' && (g.tags?.includes('Male') || g.tags?.includes('Female'))));
 
     const needsMaleVoice = selectedMaleAvatars.length > 0 || selectedUnknownAvatars.length > 0;
     const needsFemaleVoice = selectedFemaleAvatars.length > 0;
