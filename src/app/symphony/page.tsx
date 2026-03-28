@@ -10,8 +10,21 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Menu, ChevronLeft, Terminal, Play, Video } from "lucide-react";
+import { Menu, ChevronLeft, Terminal, Play, Video, Loader2 } from "lucide-react";
 import Link from 'next/link';
+
+const RenderTimer = ({ startedAt }: { startedAt: number }) => {
+    const [elapsed, setElapsed] = useState(0);
+    useEffect(() => {
+        setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+        const int = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
+        return () => clearInterval(int);
+    }, [startedAt]);
+    
+    const mins = Math.floor(elapsed / 60);
+    const secs = elapsed % 60;
+    return <span className="text-teal-500 font-mono text-[10px] tabular-nums mt-2 border border-teal-900/50 bg-teal-900/20 px-2 py-0.5 rounded">T+{mins}:{secs.toString().padStart(2, '0')}</span>;
+};
 
 export default function SymphonyStudio() {
     const [loading, setLoading] = useState(false);
@@ -37,6 +50,7 @@ export default function SymphonyStudio() {
         videoUrl: string | null;
         errorDetails: string | null;
         isGenderUnknown?: boolean;
+        startedAt: number;
     };
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
     
@@ -196,7 +210,8 @@ export default function SymphonyStudio() {
                     status: 'PENDING',
                     videoUrl: null,
                     errorDetails: null,
-                    isGenderUnknown: isUnknown
+                    isGenderUnknown: isUnknown,
+                    startedAt: Date.now()
                 });
             }
             
@@ -228,7 +243,8 @@ export default function SymphonyStudio() {
                     status: 'PROCESSING',
                     videoUrl: null,
                     errorDetails: null,
-                    isGenderUnknown: mappedResultsUI[idx]?.isGenderUnknown || false
+                    isGenderUnknown: mappedResultsUI[idx]?.isGenderUnknown || false,
+                    startedAt: Date.now()
                 }));
                 
                 setBatchJobs(newJobs);
@@ -412,7 +428,7 @@ export default function SymphonyStudio() {
                                                 
                                                 <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
                                                     {job.status === 'SUCCESS' && job.videoUrl ? (
-                                                        <video src={job.videoUrl} controls autoPlay className="w-full h-full object-cover shadow-2xl" />
+                                                        <video src={job.videoUrl} controls preload="metadata" className="w-full h-full object-cover shadow-2xl" />
                                                     ) : (
                                                         <>
                                                             {av?.avatar_thumbnail && (
@@ -420,9 +436,10 @@ export default function SymphonyStudio() {
                                                             )}
                                                             <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
                                                                 {job.status === 'PROCESSING' && (
-                                                                    <div className="bg-black/80 p-4 rounded-xl border border-gray-800 flex flex-col items-center">
-                                                                        <Video className="w-8 h-8 text-teal-500/50 animate-pulse mb-3" />
-                                                                        <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase">Executing Node Sequence...</span>
+                                                                    <div className="bg-black/90 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl shadow-black">
+                                                                        <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
+                                                                        <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase mb-1">Executing Matrix...</span>
+                                                                        <RenderTimer startedAt={job.startedAt} />
                                                                     </div>
                                                                 )}
                                                                 {job.status === 'FAILED' && (
