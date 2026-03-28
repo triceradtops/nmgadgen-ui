@@ -46,8 +46,9 @@ export default function SymphonyStudio() {
         taskId: string;
         avatarId: string;
         voiceId: string;
-        status: string; // 'PROCESSING', 'SUCCESS', 'FAILED'
+        status: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED';
         videoUrl: string | null;
+        subtitleUrl?: string | null;
         errorDetails: string | null;
         isGenderUnknown?: boolean;
         startedAt: number;
@@ -185,11 +186,12 @@ export default function SymphonyStudio() {
                             appendLog(`[Task ${taskId.slice(-4)}] Render Complete. HD Video Online.`);
                             updateJobState(taskId, {
                                 status: 'SUCCESS',
-                                videoUrl: t.preview_url || t.video_url || t.avatar_video_id
+                                videoUrl: t.preview_url || t.video_url || t.avatar_video_id,
+                                subtitleUrl: t.subtitle_url || t.caption_url || null
                             });
                             
                             setBatchJobs(currentJobs => {
-                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'SUCCESS' } : job);
+                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'SUCCESS' as const } : job);
                                 if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
                                 return activeMap;
                             });
@@ -204,7 +206,7 @@ export default function SymphonyStudio() {
                             });
                             
                             setBatchJobs(currentJobs => {
-                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'FAILED' } : job);
+                                const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'FAILED' as const } : job);
                                 if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
                                 return activeMap;
                             });
@@ -294,6 +296,7 @@ export default function SymphonyStudio() {
                     voiceId: assignedVoice,
                     status: 'PENDING',
                     videoUrl: null,
+                    subtitleUrl: null,
                     errorDetails: null,
                     isGenderUnknown: isUnknown,
                     startedAt: Date.now()
@@ -413,7 +416,7 @@ export default function SymphonyStudio() {
                                 >
                                     <div className="flex flex-col">
                                         <Label className="font-bold text-gray-200 font-mono text-sm cursor-pointer group-hover:text-teal-400 transition-colors">Show captions</Label>
-                                        <p className="text-gray-500 font-mono text-[10px] mt-0.5">Display the script's text on the screen.</p>
+                                        <p className="text-gray-500 font-mono text-[10px] mt-0.5">Display the script&apos;s text on the screen.</p>
                                     </div>
                                     <div className={`w-10 h-6 shrink-0 flex items-center rounded-full p-1 transition-colors duration-200 ${subtitlesEnabled ? 'bg-[#3CD4B5]' : 'bg-gray-800 border border-gray-700'}`}>
                                         <div className={`w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ${subtitlesEnabled ? 'translate-x-4 bg-[#111]' : 'translate-x-0 bg-gray-500'}`} />
@@ -591,7 +594,16 @@ export default function SymphonyStudio() {
                                                 
                                                 <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
                                                     {job.status === 'SUCCESS' && job.videoUrl ? (
-                                                        <video src={job.videoUrl} controls preload="metadata" className="w-full h-full object-cover shadow-2xl" />
+                                                        <video 
+                                                            src={job.videoUrl} 
+                                                            controls 
+                                                            muted 
+                                                            loop 
+                                                            crossOrigin="anonymous"
+                                                            className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30"
+                                                        >
+                                                            {job.subtitleUrl && <track kind="captions" src={job.subtitleUrl} srcLang="en" label="English" default />}
+                                                        </video>
                                                     ) : (
                                                         <>
                                                             {av?.avatar_thumbnail && (
