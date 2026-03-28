@@ -17,13 +17,15 @@ export default function SymphonyStudio() {
     const [loading, setLoading] = useState(false);
     const [terminalLogs, setTerminalLogs] = useState<string[]>(["[TIKTOK_SYMPHONY] Neural Engine Initialized..."]);
     const [isConfigOpen, setIsConfigOpen] = useState(true);
-    const [accessCode, setAccessCode] = useState("");
     
     // Symphony Data
     const [avatars, setAvatars] = useState<any[]>([]);
     const [voices, setVoices] = useState<any[]>([]);
     const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([]);
-    const [selectedVoiceIds, setSelectedVoiceIds] = useState<string[]>([]);
+    
+    // Gender Mapped Voice States
+    const [selectedMaleVoiceId, setSelectedMaleVoiceId] = useState<string | null>(null);
+    const [selectedFemaleVoiceId, setSelectedFemaleVoiceId] = useState<string | null>(null);
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
     
     // Result Tracking
@@ -34,6 +36,7 @@ export default function SymphonyStudio() {
         status: string; // 'PROCESSING', 'SUCCESS', 'FAILED'
         videoUrl: string | null;
         errorDetails: string | null;
+        isGenderUnknown?: boolean;
     };
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
     
@@ -48,12 +51,11 @@ export default function SymphonyStudio() {
         setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
     };
 
-    // Load Avatars on mount
+    // Load API Resources on mount
     useEffect(() => {
         const fetchAvatars = async () => {
             appendLog("Fetching global Digital Avatar library from TikTok...");
             try {
-                // Point to our fastAPI backend
                 const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatars");
                 const data = await res.json();
                 if (data.status === "success" && data.data) {
@@ -71,7 +73,17 @@ export default function SymphonyStudio() {
                 const data = await res.json();
                 if (data.status === "success" && data.data?.length > 0) {
                     setVoices(data.data);
-                    setSelectedVoiceIds([data.data[0].voice_id]);
+                    
+                    // Pre-sort and default male/female voice setups implicitly on load
+                    const males = data.data.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Male'));
+                    const females = data.data.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Female'));
+                    
+                    if (males.length > 0) setSelectedMaleVoiceId(males[0].voice_id);
+                    if (females.length > 0) setSelectedFemaleVoiceId(females[0].voice_id);
+                    
+                    // Failsafe configuration for un-tagged databases
+                    if (!males.length && data.data.length > 0) setSelectedMaleVoiceId(data.data[0].voice_id);
+                    
                     appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
                 }
             } catch (err) {}
@@ -87,7 +99,6 @@ export default function SymphonyStudio() {
     const pollResults = async (taskId: string) => {
         const interval = setInterval(async () => {
             try {
-                // Poll the dedicated Digital Avatar status endpoint
                 const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/avatar/${taskId}`);
                 if (res.status === 200) {
                     const data = await res.json();
@@ -103,7 +114,6 @@ export default function SymphonyStudio() {
                                 videoUrl: t.preview_url || t.video_url || t.avatar_video_id
                             });
                             
-                            // Check completeness
                             setBatchJobs(currentJobs => {
                                 const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'SUCCESS' } : job);
                                 if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
@@ -119,7 +129,6 @@ export default function SymphonyStudio() {
                                 errorDetails: String(errorObj)
                             });
                             
-                            // Check completeness
                             setBatchJobs(currentJobs => {
                                 const activeMap = currentJobs.map(job => job.taskId === taskId ? { ...job, status: 'FAILED' } : job);
                                 if (activeMap.every(j => j.status !== 'PROCESSING')) setLoading(false);
@@ -130,71 +139,87 @@ export default function SymphonyStudio() {
                         }
                     }
                 }
-            } catch (e) {
-                // Keep polling
-            }
+            } catch (e) {}
         }, 5000);
     };
 
+    // Derived Selection Arrays based on live tag evaluation
+    const selectedMaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type === 'gender' && g.tags?.includes('Male')));
+    const selectedFemaleAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && a.tag_groups?.some((g: any) => g.tag_type === 'gender' && g.tags?.includes('Female')));
+    const selectedUnknownAvatars = avatars.filter(a => selectedAvatarIds.includes(a.avatar_id) && !a.tag_groups?.some((g: any) => g.tag_type === 'gender' && (g.tags?.includes('Male') || g.tags?.includes('Female'))));
+
+    const needsMaleVoice = selectedMaleAvatars.length > 0 || selectedUnknownAvatars.length > 0;
+    const needsFemaleVoice = selectedFemaleAvatars.length > 0;
+    
+    // Extracted global list subsets mapped directly to tags dynamically
+    const maleVoices = voices.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Male'));
+    const femaleVoices = voices.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Female'));
+    const fallbackMaleVoices = maleVoices.length > 0 ? maleVoices : voices;
+
     const handleGenerate = async () => {
-        const totalPermutations = selectedAvatarIds.length * selectedVoiceIds.length;
-        if (selectedAvatarIds.length === 0 || selectedVoiceIds.length === 0 || totalPermutations > 10) return;
+        if (selectedAvatarIds.length === 0 || selectedAvatarIds.length > 5) return;
+        if (needsMaleVoice && !selectedMaleVoiceId) return;
+        if (needsFemaleVoice && !selectedFemaleVoiceId) return;
         
         setLoading(true);
         setBatchJobs([]);
-        setTerminalLogs(["[SYSTEM] Batch Generation Matrix Initialized..."]);
+        setTerminalLogs(["[SYSTEM] Batch 1:1 Generation Matrix Initialized..."]);
         setIsConfigOpen(false);
 
         try {
             const combos: any[] = [];
+            const mappedResultsUI: BatchJob[] = [];
+
+            // Directly map 1 element to 1 matched configuration avoiding N-permutation explosion
             for (const aId of selectedAvatarIds) {
-                for (const vId of selectedVoiceIds) {
-                    combos.push({
-                        avatar_id: aId,
-                        script: script,
-                        voice_id: vId
-                    });
+                const isMale = selectedMaleAvatars.some(a => a.avatar_id === aId);
+                const isFemale = selectedFemaleAvatars.some(a => a.avatar_id === aId);
+                const isUnknown = selectedUnknownAvatars.some(a => a.avatar_id === aId);
+                
+                let assignedVoice = "";
+                if (isFemale && selectedFemaleVoiceId) {
+                    assignedVoice = selectedFemaleVoiceId;
+                } else if (selectedMaleVoiceId) {
+                    assignedVoice = selectedMaleVoiceId; // Force fallback to default male voice globally
                 }
+                
+                combos.push({
+                    avatar_id: aId,
+                    script: script,
+                    voice_id: assignedVoice
+                });
+                
+                mappedResultsUI.push({
+                    taskId: `tmp_${aId}`,
+                    avatarId: aId,
+                    voiceId: assignedVoice,
+                    status: 'PENDING',
+                    videoUrl: null,
+                    errorDetails: null,
+                    isGenderUnknown: isUnknown
+                });
             }
             
-            appendLog(`Dispatching payload with ${combos.length} permutations...`);
+            appendLog(`Dispatching payload strictly bounded strictly to 5 length limit (${combos.length} assets)...`);
             
-            // TikTok strictly limits `material_packages` arrays to exactly 5 elements per API request!
-            // To honor our 10 limit while respecting TikTok's rule, we chunk the array.
-            const chunks: any[][] = [];
-            for (let i = 0; i < combos.length; i += 5) {
-                chunks.push(combos.slice(i, i + 5));
-            }
+            // Single blast batch dispatch honoring strict 5-element max
+            const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatar/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ material_packages: combos }),
+            });
+
+            const data = await res.json();
             
             let allCreatedTasks: any[] = [];
-            let chunkError = null;
-
-            for (const [idx, chunk] of chunks.entries()) {
-                appendLog(`Dispatching API chunk ${idx + 1}/${chunks.length} (${chunk.length} items)...`);
-                
-                const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/avatar/generate", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ material_packages: chunk }),
-                });
-
-                const data = await res.json();
-                
-                if (data.task_data?.list?.length > 0) {
-                    allCreatedTasks = [...allCreatedTasks, ...data.task_data.list];
-                } else if (data.task_data?.task_id) {
-                    allCreatedTasks.push({ task_id: data.task_data.task_id });
-                } else {
-                    chunkError = data;
-                    break;
-                }
+            if (data.task_data?.list?.length > 0) {
+                allCreatedTasks = data.task_data.list;
+            } else if (data.task_data?.task_id) {
+                allCreatedTasks = [{ task_id: data.task_data.task_id }];
             }
 
             if (allCreatedTasks.length > 0) {
                 appendLog(`Worker Cluster Dispatched. Registered ${allCreatedTasks.length} total tasks.`);
-                if (chunkError) {
-                    appendLog(`WARNING: A partial chunk failed to submit: ${JSON.stringify(chunkError)}`);
-                }
                 
                 const newJobs: BatchJob[] = allCreatedTasks.map((t: any, idx: number) => ({
                     taskId: t.task_id,
@@ -202,7 +227,8 @@ export default function SymphonyStudio() {
                     voiceId: combos[idx]?.voice_id || "Unknown",
                     status: 'PROCESSING',
                     videoUrl: null,
-                    errorDetails: null
+                    errorDetails: null,
+                    isGenderUnknown: mappedResultsUI[idx]?.isGenderUnknown || false
                 }));
                 
                 setBatchJobs(newJobs);
@@ -210,7 +236,7 @@ export default function SymphonyStudio() {
                 
                 newJobs.forEach(job => pollResults(job.taskId));
             } else {
-                appendLog(`CRITICAL ERROR: ${JSON.stringify(chunkError || "Unknown error")}`);
+                appendLog(`CRITICAL ERROR: ${JSON.stringify(data)}`);
                 setLoading(false);
             }
         } catch (e) {
@@ -236,7 +262,6 @@ export default function SymphonyStudio() {
 
     return (
         <div className="h-screen bg-[#0a0a0a] text-gray-300 flex flex-col font-sans overflow-hidden">
-            {/* Nav Header */}
             <div className="flex justify-between items-center bg-[#111] border-b border-gray-800 px-6 py-3 shrink-0">
                 <div className="flex items-center gap-4">
                     <button
@@ -257,10 +282,7 @@ export default function SymphonyStudio() {
                 </div>
             </div>
 
-            {/* 3-Column Workspace */}
             <div className="flex-1 flex overflow-hidden">
-
-                {/* COLUMN 1: Config Sidebar */}
                 <div className={`bg-[#111] border-r border-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}>
                     <div className="space-y-6 w-full min-w-[350px]">
                         <Card className="bg-black border-teal-900/30 shadow-sm">
@@ -283,49 +305,68 @@ export default function SymphonyStudio() {
                                     </div>
                                 </div>
                                 
-                                <div className="space-y-2 pt-2">
-                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Voice Models (Multi-Select)</Label>
-                                    <div className="h-40 overflow-y-auto bg-[#0a0a0a] border border-teal-900/50 rounded-md p-2 space-y-1 scrollbar-thin scrollbar-thumb-teal-900/50">
-                                        {voices.map(v => (
-                                            <div 
-                                                key={v.voice_id}
-                                                onClick={() => {
-                                                    if (selectedVoiceIds.includes(v.voice_id)) {
-                                                        setSelectedVoiceIds(prev => prev.filter(id => id !== v.voice_id));
-                                                    } else {
-                                                        setSelectedVoiceIds(prev => [...prev, v.voice_id]);
-                                                    }
-                                                }}
-                                                className={`flex items-center justify-between p-2 rounded cursor-pointer transition-colors ${selectedVoiceIds.includes(v.voice_id) ? 'bg-teal-900/40 border border-teal-500 text-teal-300' : 'bg-transparent border border-transparent hover:bg-gray-900 text-gray-400'}`}
-                                            >
-                                                <span className="text-xs font-mono truncate">{v.voice_name ? v.voice_name : v.voice_id}</span>
-                                                {selectedVoiceIds.includes(v.voice_id) && <div className="w-2 h-2 rounded-full bg-teal-500"></div>}
-                                            </div>
-                                        ))}
+                                {/* Dynamic Voice Selectors mapped strictly directly against selected Avatars Matrix logic */}
+                                {needsMaleVoice && (
+                                    <div className="space-y-2 pt-2 border-t border-teal-900/10">
+                                        <Label className="font-bold text-gray-400 font-mono text-xs uppercase flex items-center justify-between">
+                                            Male Voice Model 
+                                            {selectedUnknownAvatars.length > 0 && <span className="text-orange-400 text-[9px] lowercase bg-orange-400/10 px-1.5 py-0.5 rounded ml-2 border border-orange-500/20">fallback mapping</span>}
+                                        </Label>
+                                        <select
+                                            value={selectedMaleVoiceId || ''}
+                                            onChange={e => setSelectedMaleVoiceId(e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-teal-900/50 bg-[#0a0a0a] text-teal-400 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                        >
+                                            {fallbackMaleVoices.map((v: any) => (
+                                                <option key={v.voice_id} value={v.voice_id}>
+                                                    {v.voice_name ? v.voice_name : v.voice_id}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </div>
-                                    <p className="text-xs text-teal-500 font-mono text-right">{selectedVoiceIds.length} Voices Selected</p>
-                                </div>
+                                )}
+                                
+                                {needsFemaleVoice && (
+                                    <div className="space-y-2 pt-2 border-t border-teal-900/10">
+                                        <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Female Voice Model</Label>
+                                        <select
+                                            value={selectedFemaleVoiceId || ''}
+                                            onChange={e => setSelectedFemaleVoiceId(e.target.value)}
+                                            className="flex h-10 w-full rounded-md border border-pink-900/50 bg-[#0a0a0a] text-pink-400 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-pink-500"
+                                        >
+                                            {femaleVoices.map((v: any) => (
+                                                <option key={v.voice_id} value={v.voice_id}>
+                                                    {v.voice_name ? v.voice_name : v.voice_id}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                
+                                {!needsMaleVoice && !needsFemaleVoice && (
+                                    <div className="text-xs text-gray-600 font-mono text-center py-4 italic border-t border-teal-900/10">
+                                        Select at least one Digital Actor to configure voices.
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
 
                         <div className="space-y-2">
-                            {(() => {
-                                const perms = selectedAvatarIds.length * selectedVoiceIds.length;
-                                return (
-                                    <Button onClick={handleGenerate} disabled={loading || perms === 0 || perms > 10} className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all">
-                                        {loading ? "[ CONFIGURING BATCH... ]" : perms > 10 ? "[ LIMIT_EXCEEDED (MAX 10) ]" : `[ GENERATE_${perms}_VIDEOS ]`}
-                                    </Button>
-                                );
-                            })()}
+                            <Button 
+                                onClick={handleGenerate} 
+                                disabled={loading || selectedAvatarIds.length === 0} 
+                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all"
+                            >
+                                {loading ? "[ GENERATING MATRIX... ]" : `[ GENERATE_${selectedAvatarIds.length}_VIDEOS ]`}
+                            </Button>
                         </div>
                     </div>
                 </div>
 
-                {/* COLUMN 2: Workspace Center */}
                 <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
                     <div className="max-w-6xl mx-auto space-y-6">
                         {loading && (
-                            <div className="flex flex-col items-center justify-center p-24 text-center space-y-4">
+                            <div className="flex flex-col items-center justify-center p-24 text-center space-y-4 shadow-xl">
                                 <Video className="w-12 h-12 text-teal-500 animate-pulse" />
                                 <p className="text-sm text-teal-400 font-mono uppercase tracking-widest text-shadow">TikTok Server Farm Active</p>
                                 <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Dispatching Concurrent Node Cluster...</p>
@@ -343,7 +384,7 @@ export default function SymphonyStudio() {
                                     </Button>
                                 </div>
                             
-                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {batchJobs.map((job) => {
                                         const av = avatars.find(a => a.avatar_id === job.avatarId);
                                         const vc = voices.find(v => v.voice_id === job.voiceId);
@@ -351,16 +392,21 @@ export default function SymphonyStudio() {
                                         const vcName = vc?.voice_name || job.voiceId;
                                         
                                         return (
-                                            <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/50' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                            <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
                                                 <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
                                                     <div className="flex flex-col overflow-hidden mr-2">
-                                                        <span className="text-teal-400 font-bold font-mono text-[10px] truncate">{avName}</span>
-                                                        <span className="text-gray-500 font-mono text-[9px] uppercase tracking-wider truncate">{vcName}</span>
+                                                        <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2">
+                                                            {avName}
+                                                        </span>
+                                                        <span className="text-gray-500 font-mono text-[9px] uppercase tracking-wider truncate flex items-center gap-1.5 mt-0.5">
+                                                            {vcName}
+                                                            {job.isGenderUnknown && <span className="text-orange-900 bg-orange-500 font-bold px-1 rounded text-[7px]">SYSTEM MAPPED</span>}
+                                                        </span>
                                                     </div>
                                                     <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
-                                                        {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Processing</span></>}
-                                                        {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Success</span></>}
-                                                        {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Failed</span></>}
+                                                        {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
+                                                        {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
+                                                        {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
                                                     </div>
                                                 </div>
                                                 
@@ -401,7 +447,7 @@ export default function SymphonyStudio() {
                                 <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Select Digital Actor</h2>
                                     <div className="flex items-center gap-4">
-                                        <span className="text-xs text-teal-500 font-mono">{selectedAvatarIds.length} Actor(s) Selected</span>
+                                        <span className={`text-xs font-mono font-bold ${selectedAvatarIds.length >= 5 ? 'text-orange-500' : 'text-teal-500'}`}>{selectedAvatarIds.length}/5 Selected</span>
                                         <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatars.length} Models Array</span>
                                     </div>
                                 </div>
@@ -450,7 +496,11 @@ export default function SymphonyStudio() {
                                                     if (selectedAvatarIds.includes(avatar.avatar_id)) {
                                                         setSelectedAvatarIds(prev => prev.filter(id => id !== avatar.avatar_id));
                                                     } else {
-                                                        setSelectedAvatarIds(prev => [...prev, avatar.avatar_id]);
+                                                        if (selectedAvatarIds.length >= 5) {
+                                                            alert("You can only select up to 5 Digital Actors safely simultaneously for a direct mapped TikTok request.");
+                                                        } else {
+                                                            setSelectedAvatarIds(prev => [...prev, avatar.avatar_id]);
+                                                        }
                                                     }
                                                 }}
                                                 className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${selectedAvatarIds.includes(avatar.avatar_id) ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.5)]' : 'border-transparent hover:border-gray-600'}`}
@@ -488,7 +538,6 @@ export default function SymphonyStudio() {
                     </div>
                 </div>
 
-                {/* COLUMN 3: Terminal Console (Right) */}
                 <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
                     <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
                         <Terminal size={16} className="text-teal-500" />
@@ -496,7 +545,7 @@ export default function SymphonyStudio() {
                     </div>
                     <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
                         {terminalLogs.map((log, i) => (
-                            <div key={i} className={`${log.includes("ERROR") ? 'text-red-400' : 'text-teal-400'}`}>
+                            <div key={i} className={`${log.includes("ERROR") || log.includes("LIMIT") ? 'text-red-400' : 'text-teal-400'}`}>
                                 {log}
                             </div>
                         ))}
