@@ -404,17 +404,33 @@ export default function SymphonyStudio() {
     return (
         <div className="h-screen bg-[#0a0a0a] text-gray-300 flex flex-col font-sans overflow-hidden">
             <div className="flex justify-between items-center bg-[#111] border-b border-gray-800 px-6 py-3 shrink-0">
-                <div className="flex items-center gap-4">
-                    <button
-                        onClick={() => setIsConfigOpen(!isConfigOpen)}
-                        className="p-2 bg-[#0a0a0a] hover:bg-gray-800 rounded-md transition-colors text-gray-400 border border-gray-800"
-                    >
-                        {isConfigOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
-                    </button>
-                    <div>
-                        <h1 className="text-xl font-black tracking-tight text-teal-400 leading-none">NMG Symphony</h1>
-                        <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">TikTok Generative API Control</p>
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsConfigOpen(!isConfigOpen)}
+                            className="p-2 bg-[#0a0a0a] hover:bg-gray-800 rounded-md transition-colors text-gray-400 border border-gray-800"
+                        >
+                            {isConfigOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-black tracking-tight text-teal-400 leading-none">NMG Symphony</h1>
+                            <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">TikTok Generative API Control</p>
+                        </div>
                     </div>
+
+                    <div className="h-8 w-px bg-gray-800 mx-2 hidden lg:block"></div>
+
+                    <nav className="hidden lg:flex gap-3">
+                        <Link href="/symphony">
+                            <Button variant="ghost" className="text-teal-400 bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 hover:text-teal-300 font-mono text-xs uppercase tracking-wider h-9 shrink-0">Avatars</Button>
+                        </Link>
+                        <Link href="/symphony/stock-video">
+                            <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Stock Editor</Button>
+                        </Link>
+                        <Link href="/symphony/image-animation">
+                            <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Image Animation</Button>
+                        </Link>
+                    </nav>
                 </div>
                 <div className="flex gap-2">
                     <Link href="/" className="text-gray-400 hover:text-gray-300 text-sm border border-gray-800 bg-gray-900/50 px-3 py-1.5 rounded-md transition-colors font-mono">
