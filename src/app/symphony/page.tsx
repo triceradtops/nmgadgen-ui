@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Menu, ChevronLeft, Terminal, Play, Video, Loader2, Square, ChevronDown, CheckCircle2, X } from "lucide-react";
+import { Play, Pause, ChevronRight, FileVideo, LayoutGrid, X, Search, Check, ChevronDown, RefreshCw, Menu, ChevronLeft, Terminal, Loader2, Square, CheckCircle2, Video } from "lucide-react";
 import Link from 'next/link';
 
 const RenderTimer = ({ startedAt }: { startedAt: number }) => {
@@ -36,8 +36,7 @@ export default function SymphonyStudio() {
     const [selectedAvatarIds, setSelectedAvatarIds] = useState<string[]>([]);
     
     // Gender Mapped Voice States
-    const [selectedMaleVoiceId, setSelectedMaleVoiceId] = useState<string | null>(null);
-    const [selectedFemaleVoiceId, setSelectedFemaleVoiceId] = useState<string | null>(null);
+    const [avatarVoiceMap, setAvatarVoiceMap] = useState<Record<string, string>>({});
     const [script, setScript] = useState("Hey, we finally implemented Symphony before the quarter ended!");
     const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
     
@@ -50,7 +49,6 @@ export default function SymphonyStudio() {
         videoUrl: string | null;
         subtitleUrl?: string | null;
         errorDetails: string | null;
-        isGenderUnknown?: boolean;
         startedAt: number;
     };
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
@@ -65,10 +63,11 @@ export default function SymphonyStudio() {
     // Voice Filters
     const [voiceFilterLanguage, setVoiceFilterLanguage] = useState("All");
     const [voiceFilterAge, setVoiceFilterAge] = useState("All");
+    const [voiceFilterGender, setVoiceFilterGender] = useState("All");
     
     // Custom Interactive Picker States
-    const [isMalePickerOpen, setIsMalePickerOpen] = useState(false);
-    const [isFemalePickerOpen, setIsFemalePickerOpen] = useState(false);
+    const [isVoicePickerOpen, setIsVoicePickerOpen] = useState(false);
+    const [activeAvatarPickerId, setActiveAvatarPickerId] = useState<string | null>(null);
     
     // Audio Player Context
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -151,13 +150,7 @@ export default function SymphonyStudio() {
                     
                     // Pre-sort and default male/female voice setups implicitly on load
                     const males = data.data.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Male'));
-                    const females = data.data.filter((v: any) => v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === 'Female'));
-                    
-                    if (males.length > 0) setSelectedMaleVoiceId(males[0].voice_id);
-                    if (females.length > 0) setSelectedFemaleVoiceId(females[0].voice_id);
-                    
-                    // Failsafe configuration for un-tagged databases
-                    if (!males.length && data.data.length > 0) setSelectedMaleVoiceId(data.data[0].voice_id);
+                    if (males.length > 0) setAvatarVoiceMap(prev => Object.keys(prev).length === 0 ? { default: males[0].voice_id } : prev);
                     
                     appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
                 }
@@ -258,8 +251,6 @@ export default function SymphonyStudio() {
 
     const handleGenerate = async () => {
         if (selectedAvatarIds.length === 0 || selectedAvatarIds.length > 5) return;
-        if (needsMaleVoice && !selectedMaleVoiceId) return;
-        if (needsFemaleVoice && !selectedFemaleVoiceId) return;
         
         setLoading(true);
         setBatchJobs([]);
@@ -270,18 +261,9 @@ export default function SymphonyStudio() {
             const combos: any[] = [];
             const mappedResultsUI: BatchJob[] = [];
 
-            // Directly map 1 element to 1 matched configuration avoiding N-permutation explosion
+            // Directly map 1 element to 1 matched configuration cleanly overriding arbitrary API assumptions
             for (const aId of selectedAvatarIds) {
-                const isMale = selectedMaleAvatars.some(a => a.avatar_id === aId);
-                const isFemale = selectedFemaleAvatars.some(a => a.avatar_id === aId);
-                const isUnknown = selectedUnknownAvatars.some(a => a.avatar_id === aId);
-                
-                let assignedVoice = "";
-                if (isFemale && selectedFemaleVoiceId) {
-                    assignedVoice = selectedFemaleVoiceId;
-                } else if (selectedMaleVoiceId) {
-                    assignedVoice = selectedMaleVoiceId; // Force fallback to default male voice globally
-                }
+                let assignedVoice = avatarVoiceMap[aId] || avatarVoiceMap['default'] || voices[0]?.voice_id; // Default fallback global
                 
                 combos.push({
                     avatar_id: aId,
@@ -301,7 +283,6 @@ export default function SymphonyStudio() {
                     videoUrl: null,
                     subtitleUrl: null,
                     errorDetails: null,
-                    isGenderUnknown: isUnknown,
                     startedAt: Date.now()
                 });
             }
@@ -334,7 +315,6 @@ export default function SymphonyStudio() {
                     status: 'PROCESSING',
                     videoUrl: null,
                     errorDetails: null,
-                    isGenderUnknown: mappedResultsUI[idx]?.isGenderUnknown || false,
                     startedAt: Date.now()
                 }));
                 
@@ -426,111 +406,104 @@ export default function SymphonyStudio() {
                                     </div>
                                 </div>
                                 
-                                {/* Dynamic Voice Selectors mapped strictly directly against selected Avatars Matrix logic */}
-                                {needsMaleVoice && (
-                                    <div className="space-y-2 pt-2 border-t border-teal-900/10">
+                                {/* Dynamic Granular Digital Team Voice Selectors mapped securely per Avatar */}
+                                {selectedAvatarIds.length > 0 && (
+                                    <div className="space-y-3 pt-4 border-t border-teal-900/10">
                                         <Label className="font-bold text-gray-400 font-mono text-xs uppercase flex items-center justify-between">
-                                            Male Voice Model 
-                                            {selectedUnknownAvatars.length > 0 && <span className="text-orange-400 text-[9px] lowercase bg-orange-400/10 px-1.5 py-0.5 rounded ml-2 border border-orange-500/20">fallback mapping</span>}
+                                            Digital Team Audio Routing
                                         </Label>
                                         
-                                        {!isMalePickerOpen ? (
-                                            <div 
-                                                className="border border-teal-900/50 bg-[#0a0a0a] rounded-lg p-2 flex items-center justify-between cursor-pointer hover:border-teal-700 transition-colors"
-                                                onClick={() => setIsMalePickerOpen(true)}
-                                            >
-                                                <div className="flex-1 flex flex-col gap-0 opacity-100">
-                                                    {selectedMaleVoiceId && voices.find(v => v.voice_id === selectedMaleVoiceId) ? (
-                                                        renderVoiceCard(voices.find(v => v.voice_id === selectedMaleVoiceId), true, () => setIsMalePickerOpen(true))
-                                                    ) : (
-                                                        <span className="text-gray-500 font-mono text-xs pl-2 py-2">Select a voice...</span>
-                                                    )}
-                                                </div>
-                                                <ChevronDown size={16} className="text-teal-500 mx-2 shrink-0" />
-                                            </div>
-                                        ) : (
-                                            <div className="border border-teal-500/30 bg-[#050505] rounded-xl overflow-hidden flex flex-col shadow-2xl ring-1 ring-teal-500/20">
-                                                <div className="bg-[#111] p-3 border-b border-gray-800 flex flex-col gap-3">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-mono text-xs text-teal-400 font-bold uppercase tracking-wider">Select Audio Model</span>
-                                                        <button onClick={() => setIsMalePickerOpen(false)} className="text-gray-500 hover:text-white p-1 rounded hover:bg-gray-800 transition-colors"><X size={14}/></button>
+                                        {selectedAvatarIds.map(aId => {
+                                            const aTag = avatars.find(a => a.avatar_id === aId);
+                                            const boundVoiceId = avatarVoiceMap[aId] || voices[0]?.voice_id;
+                                            const boundVoice = voices.find(v => v.voice_id === boundVoiceId);
+                                            
+                                            return (
+                                                <div key={aId} className="flex items-center gap-3 bg-[#0a0a0a]/50 border border-gray-800/80 rounded-xl p-2 hover:border-teal-700/50 transition-colors">
+                                                    {/* Strict Avatar Thumbnail Context */}
+                                                    <div className="w-12 h-16 rounded-md overflow-hidden relative border border-gray-800 shrink-0">
+                                                        <img src={aTag?.avatar_thumbnail || ''} className="w-full h-full object-cover" />
                                                     </div>
-                                                    <div className="flex gap-2">
-                                                        <select value={voiceFilterLanguage} onChange={e => setVoiceFilterLanguage(e.target.value)} className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-teal-500">
-                                                            {filterableLanguages.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'World (No Filter)' : opt}</option>)}
-                                                        </select>
-                                                        <select value={voiceFilterAge} onChange={e => setVoiceFilterAge(e.target.value)} className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-teal-500 capitalize">
-                                                            {filterableAges.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'Age (No Filter)' : (opt as string).replace(/_/g, ' ')}</option>)}
-                                                        </select>
+                                                    
+                                                    {/* Voice Trigger Bind */}
+                                                    <div 
+                                                        className="flex-1 flex flex-col justify-center cursor-pointer group"
+                                                        onClick={() => {
+                                                            setActiveAvatarPickerId(aId);
+                                                            setIsVoicePickerOpen(true);
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-6 h-6 rounded-full bg-teal-500/10 flex items-center justify-center shrink-0 border border-teal-500/20 group-hover:bg-teal-500/20 transition-colors">
+                                                                    <Play size={10} className="text-teal-400 group-hover:scale-110 transition-transform" />
+                                                                </div>
+                                                                <span className="font-bold text-gray-200 text-sm">{boundVoice?.voice_name || 'Select Audio'}</span>
+                                                            </div>
+                                                            <span className="text-[10px] text-gray-500 bg-gray-900 px-1.5 py-0.5 rounded border border-gray-800">
+                                                                {boundVoice?.voice_tags?.find((t: any) => t.tag_type === 'Nation')?.tag_name || 'Global'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="text-[10px] text-gray-500 mt-1.5 uppercase font-mono tracking-wider flex items-center gap-2 pl-8">
+                                                            <span>{boundVoice?.voice_tags?.find((t: any) => t.tag_type === 'Age')?.tag_name}</span>
+                                                            <span className="w-1 h-1 rounded-full bg-gray-700" />
+                                                            <span>{boundVoice?.voice_tags?.find((t: any) => t.tag_type === 'Gender')?.tag_name}</span>
+                                                        </div>
                                                     </div>
+                                                    
+                                                    <ChevronRight size={16} className="text-gray-600 shrink-0 mr-1" />
                                                 </div>
-                                                <div className="max-h-80 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-800">
-                                                    {fallbackMaleVoices.length > 0 ? fallbackMaleVoices.map((v: any) => 
-                                                        renderVoiceCard(v, selectedMaleVoiceId === v.voice_id, () => {
-                                                            setSelectedMaleVoiceId(v.voice_id);
-                                                            setIsMalePickerOpen(false);
-                                                        })
-                                                    ) : (
-                                                        <div className="text-center py-8 text-gray-600 font-mono text-xs">No generic voices match parameters.</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+                                            );
+                                        })}
                                     </div>
                                 )}
                                 
-                                {needsFemaleVoice && (
-                                    <div className="space-y-2 pt-2 border-t border-teal-900/10">
-                                        <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Female Voice Model</Label>
-                                        
-                                        {!isFemalePickerOpen ? (
-                                            <div 
-                                                className="border border-pink-900/50 bg-[#0a0a0a] rounded-lg p-2 flex items-center justify-between cursor-pointer hover:border-pink-700 transition-colors"
-                                                onClick={() => setIsFemalePickerOpen(true)}
-                                            >
-                                                <div className="flex-1 flex flex-col gap-0 opacity-100">
-                                                    {selectedFemaleVoiceId && voices.find(v => v.voice_id === selectedFemaleVoiceId) ? (
-                                                        renderVoiceCard(voices.find(v => v.voice_id === selectedFemaleVoiceId), true, () => setIsFemalePickerOpen(true))
-                                                    ) : (
-                                                        <span className="text-gray-500 font-mono text-xs pl-2 py-2">Select a voice...</span>
-                                                    )}
-                                                </div>
-                                                <ChevronDown size={16} className="text-pink-500 mx-2 shrink-0" />
-                                            </div>
-                                        ) : (
-                                            <div className="border border-pink-500/30 bg-[#050505] rounded-xl overflow-hidden flex flex-col shadow-2xl ring-1 ring-pink-500/20">
-                                                <div className="bg-[#111] p-3 border-b border-gray-800 flex flex-col gap-3">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="font-mono text-xs text-pink-400 font-bold uppercase tracking-wider">Select Audio Model</span>
-                                                        <button onClick={() => setIsFemalePickerOpen(false)} className="text-gray-500 hover:text-white p-1 rounded hover:bg-gray-800 transition-colors"><X size={14}/></button>
-                                                    </div>
-                                                    <div className="flex gap-2">
-                                                        <select value={voiceFilterLanguage} onChange={e => setVoiceFilterLanguage(e.target.value)} className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-pink-500">
-                                                            {filterableLanguages.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'World (No Filter)' : opt}</option>)}
-                                                        </select>
-                                                        <select value={voiceFilterAge} onChange={e => setVoiceFilterAge(e.target.value)} className="h-8 w-1/2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-xs focus:ring-1 focus:ring-pink-500 capitalize">
-                                                            {filterableAges.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'Age (No Filter)' : (opt as string).replace(/_/g, ' ')}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div className="max-h-80 overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-gray-800">
-                                                    {femaleVoices.length > 0 ? femaleVoices.map((v: any) => 
-                                                        renderVoiceCard(v, selectedFemaleVoiceId === v.voice_id, () => {
-                                                            setSelectedFemaleVoiceId(v.voice_id);
-                                                            setIsFemalePickerOpen(false);
-                                                        })
-                                                    ) : (
-                                                        <div className="text-center py-8 text-gray-600 font-mono text-xs">No generic voices match parameters.</div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                
-                                {!needsMaleVoice && !needsFemaleVoice && (
-                                    <div className="text-xs text-gray-600 font-mono text-center py-4 italic border-t border-teal-900/10">
+                                {selectedAvatarIds.length === 0 && (
+                                    <div className="text-xs text-gray-600 font-mono text-center py-4 italic border-t border-teal-900/10 mt-4">
                                         Select at least one Digital Actor to configure voices.
+                                    </div>
+                                )}
+                                
+                                {/* Master Granular Voice Picker Overlay */}
+                                {isVoicePickerOpen && (
+                                    <div className="absolute inset-x-2 bottom-2 top-2 z-50 bg-[#050505] flex flex-col rounded-xl overflow-hidden ring-1 ring-teal-500/50 shadow-2xl">
+                                        <div className="bg-[#111] p-3 border-b border-gray-800 flex flex-col gap-3">
+                                            <div className="flex justify-between items-center">
+                                                <span className="font-mono text-[10px] text-teal-400 font-bold uppercase tracking-widest bg-teal-500/10 px-2 py-1 rounded">Assign Audio Target</span>
+                                                <button onClick={() => { setIsVoicePickerOpen(false); setActiveAvatarPickerId(null); }} className="text-gray-500 hover:text-white p-1 rounded hover:bg-gray-800 transition-colors bg-[#0a0a0a] border border-gray-800"><X size={14}/></button>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <select value={voiceFilterLanguage} onChange={e => setVoiceFilterLanguage(e.target.value)} className="h-8 flex-1 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-[10px] focus:ring-1 focus:ring-teal-500 outline-none uppercase tracking-wider">
+                                                    {filterableLanguages.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'World' : (opt as string).replace(/_/g, ' ')}</option>)}
+                                                </select>
+                                                <select value={voiceFilterAge} onChange={e => setVoiceFilterAge(e.target.value)} className="h-8 w-24 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-[10px] focus:ring-1 focus:ring-teal-500 outline-none uppercase tracking-wider">
+                                                    {filterableAges.map(opt => <option key={opt as string} value={opt as string}>{opt === 'All' ? 'Age' : (opt as string).replace(/_/g, ' ')}</option>)}
+                                                </select>
+                                                <select value={voiceFilterGender} onChange={e => setVoiceFilterGender(e.target.value)} className="h-8 w-24 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-400 px-2 font-mono text-[10px] focus:ring-1 focus:ring-teal-500 outline-none uppercase tracking-wider">
+                                                    <option value="All">Gender</option>
+                                                    <option value="Male">Male</option>
+                                                    <option value="Female">Female</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="overflow-y-auto flex-1 p-2 space-y-2 scrollbar-thin scrollbar-thumb-teal-900 border-t border-teal-500/10">
+                                            {voices.filter((v: any) => {
+                                                if (voiceFilterGender !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Gender' && t.tag_name === voiceFilterGender)) return false;
+                                                if (voiceFilterLanguage !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Nation' && t.tag_name === voiceFilterLanguage)) return false;
+                                                if (voiceFilterAge !== "All" && !v.voice_tags?.some((t: any) => t.tag_type === 'Age' && t.tag_name === voiceFilterAge)) return false;
+                                                return true;
+                                            }).map((v: any) => 
+                                                renderVoiceCard(v, avatarVoiceMap[activeAvatarPickerId || ''] === v.voice_id || (Object.keys(avatarVoiceMap).length === 0 && voices[0]?.voice_id === v.voice_id), () => {
+                                                    if (activeAvatarPickerId) {
+                                                        setAvatarVoiceMap(prev => ({...prev, [activeAvatarPickerId]: v.voice_id}));
+                                                    }
+                                                    setIsVoicePickerOpen(false);
+                                                })
+                                            )}
+                                            {voices.length === 0 && (
+                                                <div className="text-center py-10 font-mono text-xs text-gray-600">No voices match these complex filters.</div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </CardContent>
@@ -585,7 +558,6 @@ export default function SymphonyStudio() {
                                                         </span>
                                                         <span className="text-gray-500 font-mono text-[9px] uppercase tracking-wider truncate flex items-center gap-1.5 mt-0.5">
                                                             {vcName}
-                                                            {job.isGenderUnknown && <span className="text-orange-900 bg-orange-500 font-bold px-1 rounded text-[7px]">SYSTEM MAPPED</span>}
                                                         </span>
                                                     </div>
                                                     <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
