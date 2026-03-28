@@ -25,6 +25,13 @@ export default function SymphonyStudio() {
     // Result
     const [jobId, setJobId] = useState<string | null>(null);
     const [finalVideoUrl, setFinalVideoUrl] = useState<string | null>(null);
+    
+    // Filters
+    const [filterIndustry, setFilterIndustry] = useState("All");
+    const [filterGender, setFilterGender] = useState("All");
+    const [filterScene, setFilterScene] = useState("All");
+    const [filterRegion, setFilterRegion] = useState("All");
+    const [searchQuery, setSearchQuery] = useState("");
 
     const appendLog = (msg: string) => {
         setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
@@ -148,6 +155,21 @@ export default function SymphonyStudio() {
         }, 5000);
     };
 
+    const safeAvatars = avatars || [];
+    const industries = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'industry')?.tags || [])))];
+    const genders = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'gender')?.tags || [])))];
+    const scenes = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'scene')?.tags || [])))];
+    const regions = ["All", ...Array.from(new Set(safeAvatars.flatMap(a => a.tag_groups?.find((g: any) => g.tag_type === 'region')?.tags || [])))];
+
+    const filteredAvatars = safeAvatars.filter(a => {
+        if (searchQuery && !a.avatar_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !a.avatar_id?.includes(searchQuery)) return false;
+        if (filterIndustry !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'industry')?.tags?.includes(filterIndustry)) return false;
+        if (filterGender !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'gender')?.tags?.includes(filterGender)) return false;
+        if (filterScene !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'scene')?.tags?.includes(filterScene)) return false;
+        if (filterRegion !== "All" && !a.tag_groups?.find((g: any) => g.tag_type === 'region')?.tags?.includes(filterRegion)) return false;
+        return true;
+    });
+
     return (
         <div className="h-screen bg-[#0a0a0a] text-gray-300 flex flex-col font-sans overflow-hidden">
             {/* Nav Header */}
@@ -245,16 +267,47 @@ export default function SymphonyStudio() {
                             <>
                                 <div className="flex justify-between items-center mb-4">
                                     <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Select Digital Actor</h2>
-                                    <span className="text-xs text-teal-500 font-mono">{avatars.length} Models Online</span>
+                                    <span className="text-xs text-teal-500 font-mono">{filteredAvatars.length} Models Online</span>
                                 </div>
+                                
+                                {avatars.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
+                                        <Input 
+                                            placeholder="🔍 Search ID or Name..." 
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
+                                        />
+                                        
+                                        <select value={filterIndustry} onChange={e => setFilterIndustry(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                            {industries.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Industry' : opt.replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                        
+                                        <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                            {genders.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gender' : opt.replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                        
+                                        <select value={filterScene} onChange={e => setFilterScene(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                            {scenes.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Background' : opt.replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                        
+                                        <select value={filterRegion} onChange={e => setFilterRegion(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                            {regions.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Region' : opt.replace(/_/g, ' ')}</option>)}
+                                        </select>
+                                    </div>
+                                )}
                                 
                                 {avatars.length === 0 ? (
                                     <div className="text-center py-20 text-gray-600 font-mono text-sm animate-pulse">
                                         &gt; Loading global avatar database...
                                     </div>
+                                ) : filteredAvatars.length === 0 ? (
+                                    <div className="text-center py-20 text-gray-600 font-mono text-sm">
+                                        &gt; No avatars match the selected filters.
+                                    </div>
                                 ) : (
                                     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                                        {avatars.map(avatar => (
+                                        {filteredAvatars.map(avatar => (
                                             <div 
                                                 key={avatar.avatar_id}
                                                 onClick={() => setSelectedAvatarId(avatar.avatar_id)}
