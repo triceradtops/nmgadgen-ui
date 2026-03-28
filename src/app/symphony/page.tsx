@@ -745,7 +745,19 @@ export default function SymphonyStudio() {
                                             return (
                                               <div 
                                                   key={group.groupId}
-                                                  onClick={() => setActiveAvatarGroup(group)}
+                                                  onClick={() => {
+                                                      if (group.looks.length === 1) {
+                                                          const lookId = group.looks[0].avatar_id;
+                                                          if (isSelected) {
+                                                              setSelectedAvatarIds(prev => prev.filter(id => id !== lookId));
+                                                          } else {
+                                                              if (selectedAvatarIds.length >= 5) alert("Max 5 avatars safely supported simultaneously.");
+                                                              else setSelectedAvatarIds(prev => [...prev, lookId]);
+                                                          }
+                                                      } else {
+                                                          setActiveAvatarGroup(group);
+                                                      }
+                                                  }}
                                                   className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${isSelected ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'border-transparent hover:border-gray-600'}`}
                                               >
                                                   <img 
