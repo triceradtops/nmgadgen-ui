@@ -225,7 +225,7 @@ export default function TextToVideoStudio() {
 
                                 <Button 
                                     onClick={handleGenerate} 
-                                    disabled={loading || !textPrompt.trim()}
+                                    disabled={loading}
                                     className="w-full bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-wider text-xs h-10 rounded-md transition-all mt-6 disabled:opacity-50"
                                 >
                                     {loading ? 'Synthesizing...' : 'Generate Text-To-Video'}
