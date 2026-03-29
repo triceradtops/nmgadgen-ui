@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Menu, ChevronRight, Video } from "lucide-react";
+import { ChevronLeft, Menu, ChevronRight, Video, Loader2 } from "lucide-react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -83,8 +83,8 @@ export default function TextToVideoStudio() {
         
         setLoading(true);
         const payload = {
-            // Supply a synthetic black 1x1 base pixel to bypass image pipeline constraint, driving generation entirely from the animation_prompt
-            image_url: "https://upload.wikimedia.org/wikipedia/commons/c/ca/1x1.png",
+            // Supply a synthetic portrait 1080x1920 black pixel image to strictly enforce a 9:16 generation outcome
+            image_url: "https://dummyimage.com/1080x1920/000/000.png",
             animation_prompt: textPrompt.trim() || undefined,
             provider_model: providerModel === "Video 1.5 Fast" ? "Turing" : "Turing",
             video_generation_count: 1
@@ -246,8 +246,21 @@ export default function TextToVideoStudio() {
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
                             {batchJobs.map(job => (
-                                <Card key={job.taskId} className="bg-[#111] border-gray-800 flex flex-col overflow-hidden">
-                                    <div className="flex-1 bg-black relative max-h-[500px] flex items-center justify-center border-b border-gray-800 aspect-[9/16] group">
+                                <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                    <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
+                                        <div className="flex flex-col overflow-hidden mr-2">
+                                            <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2" title={job.promptText}>
+                                                {job.promptText.substring(0, 40)}{job.promptText.length > 40 ? '...' : ''}
+                                            </span>
+                                        </div>
+                                        <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
+                                            {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
+                                            {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
+                                            {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
                                         {job.status === 'SUCCESS' && job.videoUrl ? (
                                             <video 
                                                 controls 
@@ -255,44 +268,29 @@ export default function TextToVideoStudio() {
                                                 loop 
                                                 muted
                                                 crossOrigin="anonymous"
-                                                className="w-full h-full object-cover"
+                                                className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30"
                                             >
                                                 <source src={job.videoUrl} type="video/mp4" />
                                             </video>
-                                        ) : job.status === 'FAILED' ? (
-                                            <div className="h-48 flex flex-col p-4 text-center items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10 gap-2 overflow-y-auto">
-                                                <span>Generation Failed</span>
-                                                {job.errorDetails && <span className="text-[10px] lowercase text-red-400 opacity-60 break-all">{job.errorDetails}</span>}
-                                            </div>
                                         ) : (
-                                            <div className="absolute inset-0 z-10 font-mono text-xs flex flex-col items-center justify-center gap-4 w-full text-teal-500 bg-[#0a0a0a]">
-                                                {/* Replicate the circular progress from the screenshot */}
-                                                <div className="relative flex items-center justify-center w-24 h-24 rounded-full border border-teal-900 overflow-hidden">
-                                                    <div className="absolute inset-0" style={{background: `conic-gradient(from 0deg, #14b8a6 20%, transparent 20%)`}}></div>
-                                                    <div className="absolute inset-1 bg-[#0a0a0a] rounded-full flex flex-col items-center justify-center">
-                                                        <span className="text-gray-200 text-sm font-sans tracking-tight">12%</span>
+                                            <div className="absolute inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center z-10 p-4 text-center">
+                                                {job.status === 'PROCESSING' && (
+                                                    <div className="bg-black/90 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl shadow-black relative z-20">
+                                                        <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
+                                                        <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase mb-1">Executing Matrix...</span>
+                                                        <RenderTimer startedAt={job.startedAt} />
                                                     </div>
-                                                </div>
-                                                <div className="text-center">
-                                                    <p className="font-semibold text-gray-300">Generating...</p>
-                                                    <p className="text-[10px] text-gray-500 mt-1 max-w-[80%] mx-auto font-sans leading-tight">This may take 1-2 min. You can leave this page and come back later.</p>
-                                                </div>
+                                                )}
+                                                {job.status === 'FAILED' && (
+                                                    <div className="bg-black/90 p-4 rounded-xl border border-red-900 flex flex-col items-center">
+                                                        <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
+                                                        <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-3 bg-[#111]">
-                                        <div className="flex justify-between items-center bg-[#0a0a0a] rounded px-2 py-1.5 border border-gray-800">
-                                            <span className="text-[10px] text-gray-400 truncate max-w-[150px]" title={job.promptText}>{job.promptText}</span>
-                                            {job.status === 'PROCESSING' ? (
-                                                <RenderTimer startedAt={job.startedAt} />
-                                            ) : (
-                                                <span className={`font-mono text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded shrink-0 ml-2 ${job.status === 'SUCCESS' ? 'text-teal-400 bg-teal-400/10' : 'text-red-400 bg-red-400/10'}`}>
-                                                    {job.status}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
+                                </div>
                             ))}
                         </div>
                     )}
