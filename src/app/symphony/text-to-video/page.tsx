@@ -244,7 +244,7 @@ export default function TextToVideoStudio() {
                             <p className="font-mono text-xs tracking-widest uppercase shadow-sm">Draft a prompt to synthesize</p>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                             {batchJobs.map(job => (
                                 <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
                                     <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
