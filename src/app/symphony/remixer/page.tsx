@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Play, Square, ChevronLeft, Menu, Video, ChevronRight } from "lucide-react";
+import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, X, Terminal, Loader2, ImageIcon, Plus } from "lucide-react";
+import { useRef } from "react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -43,8 +44,82 @@ export default function StockVideoStudio() {
     const [voiceId, setVoiceId] = useState("");
     const [videoDuration, setVideoDuration] = useState("RECOMMENDED");
 
+    
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
     const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+    
+    // Multi-Asset States
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+    const [uploadedVideos, setUploadedVideos] = useState<string[]>([]);
+    const [terminalLogs, setTerminalLogs] = useState<string[]>([
+        "> [TIKTOK_REMIX_ENGINE] Neural Assembly Initialized...",
+        `[${new Date().toLocaleTimeString()}] Ready for Multi-Asset Ingestion.`
+    ]);
+    
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(event.target.files || []);
+        if (files.length === 0) return;
+
+        setUploading(true);
+        const images: string[] = [];
+        const videos: string[] = [];
+        let hasError = false;
+
+        setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Batch mounting ${files.length} localized assets to secure S3 bucket...`]);
+
+        for (const file of files) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const res = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: {
+                        "x-access-code": localStorage.getItem("site_access_code") || process.env.NEXT_PUBLIC_ACCESS_CODE || "nmg_super_secret_2026",
+                    },
+                    body: formData,
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.url) {
+                        if (file.type.startsWith("video/")) {
+                            videos.push(data.url);
+                        } else {
+                            images.push(data.url);
+                        }
+                    } else {
+                        hasError = true;
+                    }
+                } else {
+                    hasError = true;
+                }
+            } catch (error) {
+                hasError = true;
+            }
+        }
+
+        if (images.length) {
+            setUploadedImages(prev => [...prev, ...images]);
+            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Successfully mapped ${images.length} image vectors.`]);
+        }
+        if (videos.length) {
+            setUploadedVideos(prev => [...prev, ...videos]);
+            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Successfully mapped ${videos.length} video containers.`]);
+        }
+        if (hasError) {
+            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ERROR: Rejected certain files in transmission payload.`]);
+        }
+
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+    
+    const removeImage = (idx: number) => setUploadedImages(prev => prev.filter((_, i) => i !== idx));
+    const removeVideo = (idx: number) => setUploadedVideos(prev => prev.filter((_, i) => i !== idx));
+
 
     useEffect(() => {
         const fetchVoices = async () => {
@@ -82,7 +157,7 @@ export default function StockVideoStudio() {
         const interval = setInterval(async () => {
             try {
                 // Video status endpoint uses /status/video/{taskId}
-                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/video/${taskId}`);
+                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/video/${taskId}?aigc_video_type=VOICEOVER`);
                 if (res.status === 200) {
                     const data = await res.json();
                     const tasks = data.list || [];
@@ -99,10 +174,12 @@ export default function StockVideoStudio() {
                             clearInterval(interval);
                         } else if (t.status === "FAILED") {
                             updateJobState(taskId, { status: 'FAILED' });
+                            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ERROR: Remix Node Critical Failure.`]);
                             clearInterval(interval);
                         }
                     } else if (data.detail && String(data.detail).includes("API Error")) {
                         updateJobState(taskId, { status: 'FAILED' });
+                            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ERROR: Remix Node Critical Failure.`]);
                         clearInterval(interval);
                     }
                 }
@@ -121,6 +198,7 @@ export default function StockVideoStudio() {
         setLoading(true);
         const points = sellingPoints.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10);
 
+        setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Dispatching Remix Request to Symphony Pipeline...`]);
         const payload = {
             aigc_video_type: "VOICEOVER",
             product_video_info: {
@@ -133,7 +211,9 @@ export default function StockVideoStudio() {
                     product_name: productName.slice(0, 50),
                     product_description: productDesc.slice(0, 500),
                     product_selling_points: points.length ? points : ["Standard product"]
-                }]
+                }],
+                input_image_list: uploadedImages.length > 0 ? { image_url_list: uploadedImages } : undefined,
+                input_video_list: uploadedVideos.length > 0 ? { video_id_list: uploadedVideos } : undefined
             }
         };
 
@@ -217,7 +297,7 @@ export default function StockVideoStudio() {
                         <Link href="/symphony">
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Avatars</Button>
                         </Link>
-                        <Link href="/symphony/stock-video">
+                        <Link href="/symphony/remixer">
                             <Button variant="ghost" className="text-teal-400 bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 hover:text-teal-300 font-mono text-xs uppercase tracking-wider h-9 shrink-0">Remixer</Button>
                         </Link>
                         <Link href="/symphony/image-animation">
@@ -244,6 +324,52 @@ export default function StockVideoStudio() {
                                 <CardTitle className="text-lg font-mono uppercase tracking-wider">Stock Generation Specs</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
+                                <div className="space-y-4 mb-6">
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Remix Media Assets (Images/Videos)</Label>
+                                    <div 
+                                        className={`border-2 border-dashed ${uploading ? 'border-teal-500 bg-teal-900/10' : 'border-gray-800 hover:border-teal-500/50 hover:bg-teal-900/5'} rounded-xl p-4 transition-all flex flex-col justify-center items-center gap-2 cursor-pointer relative group`}
+                                        onClick={() => !uploading && fileInputRef.current?.click()}
+                                    >
+                                        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/mp4,video/quicktime" multiple onChange={handleFileUpload} disabled={uploading} />
+                                        {uploading ? (
+                                            <div className="flex flex-col items-center gap-2 animate-pulse text-teal-500">
+                                                <div className="w-5 h-5 border-t-2 border-teal-500 rounded-full animate-spin"></div>
+                                                <span className="font-mono text-[10px] uppercase font-bold tracking-widest">Mounting to S3 Bucket...</span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <UploadCloud className="text-teal-500 group-hover:scale-110 transition-transform" />
+                                                <div className="text-center">
+                                                    <span className="font-mono text-xs text-teal-400 font-bold tracking-wider">CLICK OR DRAG MEDIA</span>
+                                                    <p className="font-mono text-[9px] text-gray-500 uppercase mt-1">Supports MULTIPLE Images & MP4s</p>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                    
+                                    {/* Preview Mounted Media */}
+                                    {(uploadedImages.length > 0 || uploadedVideos.length > 0) && (
+                                        <div className="flex flex-wrap gap-2 mt-2">
+                                            {uploadedImages.map((img, i) => (
+                                                <div key={`img-${i}`} className="relative group w-12 h-16 bg-black border border-gray-800 rounded overflow-hidden">
+                                                    <img src={img} className="object-cover w-full h-full opacity-80" alt="uploaded asset" />
+                                                    <button onClick={() => removeImage(i)} className="absolute top-0 right-0 p-0.5 bg-black/80 hover:bg-red-500/80 text-white rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {uploadedVideos.map((vid, i) => (
+                                                <div key={`vid-${i}`} className="relative group w-12 h-16 bg-[#0a0a0a] border border-teal-500/30 rounded overflow-hidden flex items-center justify-center">
+                                                    <Video size={14} className="text-teal-500 opacity-60" />
+                                                    <span className="absolute bottom-1 font-mono text-[8px] text-teal-500 bg-black/80 px-1 rounded">MP4</span>
+                                                    <button onClick={() => removeVideo(i)} className="absolute top-0 right-0 p-0.5 bg-black/80 hover:bg-red-500/80 text-white rounded-bl opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="space-y-2">
                                     <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Product Name</Label>
                                     <Input
@@ -334,66 +460,94 @@ export default function StockVideoStudio() {
                     </div>
                 </div>
 
-                {/* Dashboard Area */}
-                <div className="flex-1 bg-black p-6 overflow-y-auto">
-                    {batchJobs.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-4 border-2 border-dashed border-gray-900 rounded-xl">
-                            <Video size={48} className="opacity-20" />
-                            <p className="font-mono text-sm tracking-widest uppercase">No Active Render Nodes</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
+                {/* Split Workspace Area */}
+                <div className="flex-1 flex flex-col xl:flex-row overflow-hidden border-t border-gray-800 xl:border-t-0 bg-black">
+                    <div className="flex-1 flex flex-col min-w-0 bg-[#0A0A0A] xl:border-r border-gray-800">
+                        <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
+                            <div className="max-w-[1800px] mx-auto space-y-6">
+                                {batchJobs.length === 0 ? (
+                                    <div className="h-[400px] flex flex-col items-center justify-center text-gray-600 gap-4 border-2 border-dashed border-gray-900 rounded-xl">
+                                        <Video size={48} className="opacity-20" />
+                                        <p className="font-mono text-xs tracking-widest uppercase shadow-sm">Remix Pipeline Idle – Configure Vector Params</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                             {batchJobs.map(job => (
-                                <Card key={job.taskId} className="bg-[#111] border-gray-800 flex flex-col overflow-hidden">
-                                    <div className="flex-1 bg-black relative max-h-[500px] flex items-center justify-center border-b border-gray-800">
-                                        {job.status === 'SUCCESS' && job.videoUrl ? (
-                                            <video
-                                                controls
-                                                autoPlay
-                                                loop
-                                                muted
-                                                crossOrigin="anonymous"
-                                                className="w-full h-full object-cover max-h-[500px]"
-                                            >
-                                                <source src={job.videoUrl} type="video/mp4" />
-                                                {job.subtitleUrl && (
-                                                    <track
-                                                        kind="captions"
-                                                        src={job.subtitleUrl.endsWith('.srt') ? `/api/captions?url=${encodeURIComponent(job.subtitleUrl)}` : job.subtitleUrl}
-                                                        srcLang="en"
-                                                        label="English"
-                                                        default
-                                                    />
-                                                )}
-                                            </video>
-                                        ) : job.status === 'FAILED' ? (
-                                            <div className="h-48 flex flex-col p-4 text-center items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10 gap-2 overflow-y-auto">
-                                                <span>Generation Failed</span>
-                                                {job.errorDetails && <span className="text-[10px] lowercase text-red-400 opacity-60 break-all">{job.errorDetails}</span>}
+                                <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                                <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
+                                                    <div className="flex flex-col overflow-hidden mr-2">
+                                                        <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2" title={job.taskId}>
+                                                            ID_{job.taskId.slice(-8).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
+                                                        {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
+                                                        {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
+                                                        {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
+                                                    {job.status === 'SUCCESS' && job.videoUrl ? (
+                                                        <video 
+                                                            controls 
+                                                            autoPlay 
+                                                            loop 
+                                                            muted
+                                                            crossOrigin="anonymous"
+                                                            className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30"
+                                                        >
+                                                            <source src={job.videoUrl} type="video/mp4" />
+                                                            {job.subtitleUrl && (
+                                                                <track
+                                                                    kind="captions"
+                                                                    src={job.subtitleUrl.endsWith('.srt') ? `/api/captions?url=${encodeURIComponent(job.subtitleUrl)}` : job.subtitleUrl}
+                                                                    srcLang="en"
+                                                                    label="English"
+                                                                    default
+                                                                />
+                                                            )}
+                                                        </video>
+                                                    ) : (
+                                                        <div className="absolute inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center z-10 p-4 text-center">
+                                                            {job.status === 'PROCESSING' && (
+                                                                <div className="bg-black/90 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl shadow-black relative z-20">
+                                                                    <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
+                                                                    <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase mb-1">Executing Array...</span>
+                                                                    <RenderTimer startedAt={job.startedAt} />
+                                                                </div>
+                                                            )}
+                                                            {job.status === 'FAILED' && (
+                                                                <div className="bg-black/90 p-4 rounded-xl border border-red-900 flex flex-col items-center">
+                                                                    <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
+                                                                    <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        ) : (
-                                            <div className="h-48 font-mono text-xs flex flex-col items-center justify-center gap-3 w-full animate-pulse text-teal-500">
-                                                <div className="w-8 h-8 rounded-full border-t-2 border-teal-500 animate-spin"></div>
-                                                Generating Base Vector...
-                                            </div>
-                                        )}
+                                        ))}
                                     </div>
-                                    <div className="p-3 bg-[#111]">
-                                        <div className="flex justify-between items-center bg-[#0a0a0a] rounded px-2 py-1.5 border border-gray-800">
-                                            <span className="font-mono text-[10px] text-gray-500 truncate">{job.taskId}</span>
-                                            {job.status === 'PROCESSING' ? (
-                                                <RenderTimer startedAt={job.startedAt} />
-                                            ) : (
-                                                <span className={`font-mono text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded ${job.status === 'SUCCESS' ? 'text-teal-400 bg-teal-400/10' : 'text-red-400 bg-red-400/10'}`}>
-                                                    {job.status}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Terminal Sidebar */}
+                    <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
+                        <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
+                            <Terminal size={16} className="text-teal-500" />
+                            <span className="text-xs font-mono font-bold tracking-wider uppercase">Symphony Terminal</span>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
+                            {terminalLogs.map((log, i) => (
+                                <div key={i} className={`${log.includes("ERROR") || log.includes("LIMIT") || log.includes("FAILED") ? 'text-red-400' : 'text-teal-400'}`}>
+                                    {log}
+                                </div>
                             ))}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>

@@ -424,7 +424,7 @@ export default function SymphonyStudio() {
                         <Link href="/symphony">
                             <Button variant="ghost" className="text-teal-400 bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 hover:text-teal-300 font-mono text-xs uppercase tracking-wider h-9 shrink-0">Avatars</Button>
                         </Link>
-                        <Link href="/symphony/stock-video">
+                        <Link href="/symphony/remixer">
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Remixer</Button>
                         </Link>
                         <Link href="/symphony/image-animation">
