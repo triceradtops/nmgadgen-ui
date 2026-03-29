@@ -50,7 +50,7 @@ export default function ImageAnimationStudio() {
     const pollResults = async (taskId: string) => {
         const interval = setInterval(async () => {
             try {
-                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/video/${taskId}`);
+                const res = await fetch(`https://web-production-1f2e2.up.railway.app/api/tiktok/status/video/${taskId}?aigc_video_type=IMAGE_ANIMATION`);
                 if (res.status === 200) {
                     const data = await res.json();
                     const tasks = data.list || [];
