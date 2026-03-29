@@ -209,8 +209,8 @@ export default function StockVideoStudio() {
                 subtitle_enabled: true,
                 product_info_list: [{
                     product_name: productName.slice(0, 50),
-                    product_description: productDesc.slice(0, 500),
-                    product_selling_points: points.length ? points : ["Standard product"]
+                    description: productDesc.slice(0, 500),
+                    selling_points: points.length ? points : ["Standard product"]
                 }],
                 input_image_list: uploadedImages.length > 0 ? { image_url_list: uploadedImages } : undefined,
                 input_video_list: uploadedVideos.length > 0 ? { video_id_list: uploadedVideos } : undefined
