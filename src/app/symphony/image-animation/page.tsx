@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, ImageIcon } from "lucide-react";
+import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, ImageIcon, Terminal, Loader2 } from "lucide-react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -42,6 +42,10 @@ export default function ImageAnimationStudio() {
     const [animationPrompt, setAnimationPrompt] = useState("");
     
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
+    const [terminalLogs, setTerminalLogs] = useState<string[]>([
+        "> [TIKTOK_SYMPHONY] Neural Engine Initialized...",
+        `[${new Date().toLocaleTimeString()}] Ready for Image-to-Video ingestion.`
+    ]);
 
     const updateJobState = (taskId: string, updates: Partial<BatchJob>) => {
         setBatchJobs(prev => prev.map(job => job.taskId === taskId ? { ...job, ...updates } : job));
@@ -62,9 +66,11 @@ export default function ImageAnimationStudio() {
                                 status: 'SUCCESS',
                                 videoUrl: t.preview_url || t.video_url || t.avatar_video_id,
                             });
+                            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Task ${taskId} Synthesized Successfully.`]);
                             clearInterval(interval);
                         } else if (t.status === "FAILED") {
                             updateJobState(taskId, { status: 'FAILED' });
+                            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ERROR: Task ${taskId} FAILED rendering.`]);
                             clearInterval(interval);
                         }
                     } else if (data.detail && String(data.detail).includes("API Error")) {
@@ -109,6 +115,7 @@ export default function ImageAnimationStudio() {
             alert("Network routing error pushing securely to buckets.");
         } finally {
             setUploading(false);
+            setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Image uploaded and securely mounted.`]);
             if (fileInputRef.current) fileInputRef.current.value = "";
         }
     };
@@ -120,6 +127,7 @@ export default function ImageAnimationStudio() {
         }
         
         setLoading(true);
+        setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] Dispatching generation request to Symphony Model...`]);
         const payload = {
             image_url: imageUrl,
             background_prompt: backgroundPrompt.trim() || undefined,
@@ -199,7 +207,7 @@ export default function ImageAnimationStudio() {
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Stock Editor</Button>
                         </Link>
                         <Link href="/symphony/image-animation">
-                            <Button variant="ghost" className="text-teal-400 bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 hover:text-teal-300 font-mono text-xs uppercase tracking-wider h-9 shrink-0">Image Animation</Button>
+                            <Button variant="ghost" className="text-teal-400 bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 hover:text-teal-300 font-mono text-xs uppercase tracking-wider h-9 shrink-0">Image to Video</Button>
                         </Link>
                         <Link href="/symphony/text-to-video">
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Text to Video</Button>
@@ -257,13 +265,19 @@ export default function ImageAnimationStudio() {
                                         )}
                                     </div>
                                     <Label className="font-bold text-gray-500 font-mono text-[10px] uppercase mt-2 block">Or Pass Direct HTTPS URL</Label>
-                                    <Input 
-                                        value={imageUrl}
-                                        onChange={e => setImageUrl(e.target.value)}
-                                        placeholder="https://..." 
-                                        style={{ color: "white", caretColor: "white" }}
-                                        className="bg-[#0a0a0a] border-gray-700 font-mono text-xs text-teal-400 focus-visible:ring-teal-500" 
-                                    />
+                                    {imageUrl && imageUrl.includes("s3") ? (
+                                        <div className="bg-[#0a0a0a] border border-gray-800 text-teal-500 font-mono text-xs px-3 py-2 rounded-md flex items-center justify-center bg-teal-950/20">
+                                            [ S3 BUCKET MOUNTED SECURELY ]
+                                        </div>
+                                    ) : (
+                                        <Input 
+                                            value={imageUrl}
+                                            onChange={e => setImageUrl(e.target.value)}
+                                            placeholder="https://..." 
+                                            style={{ color: "white", caretColor: "white" }}
+                                            className="bg-[#0a0a0a] border-gray-700 font-mono text-xs text-teal-400 focus-visible:ring-teal-500" 
+                                        />
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
@@ -309,61 +323,85 @@ export default function ImageAnimationStudio() {
                     </div>
                 </div>
 
-                {/* Dashboard Area */}
-                <div className="flex-1 bg-black p-6 overflow-y-auto">
-                    {batchJobs.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-4 border-2 border-dashed border-gray-900 rounded-xl">
-                            <ImageIcon size={48} className="opacity-20" />
-                            <p className="font-mono text-xs tracking-widest uppercase shadow-sm">Attach a Seed frame to begin</p>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-max">
-                            {batchJobs.map(job => (
-                                <Card key={job.taskId} className="bg-[#111] border-gray-800 flex flex-col overflow-hidden">
-                                    <div className="flex-1 bg-black relative max-h-[500px] flex items-center justify-center border-b border-gray-800 aspect-square group">
-                                        {job.status === 'SUCCESS' && job.videoUrl ? (
-                                            <video 
-                                                controls 
-                                                autoPlay 
-                                                loop 
-                                                muted
-                                                crossOrigin="anonymous"
-                                                className="w-full h-full object-cover"
-                                            >
-                                                <source src={job.videoUrl} type="video/mp4" />
-                                            </video>
-                                        ) : job.status === 'FAILED' ? (
-                                            <div className="h-48 flex flex-col p-4 text-center items-center justify-center text-red-500 font-mono text-xs uppercase tracking-widest w-full bg-red-950/10 gap-2 overflow-y-auto">
-                                                <span>Generation Failed</span>
-                                                {job.errorDetails && <span className="text-[10px] lowercase text-red-400 opacity-60 break-all">{job.errorDetails}</span>}
-                                            </div>
-                                        ) : (
-                                            <>
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={job.imageUrl} alt="seed" className="w-full h-full object-cover opacity-30 grayscale blur-[2px]" />
-                                                <div className="absolute inset-0 z-10 font-mono text-xs flex flex-col items-center justify-center gap-3 w-full text-teal-500">
-                                                    <div className="w-8 h-8 rounded-full border-t-2 border-teal-500 animate-spin"></div>
-                                                    Tracking Diffusion Graph...
+                {/* Split Workspace Area */}
+                <div className="flex-1 flex flex-col xl:flex-row overflow-hidden border-t border-gray-800 xl:border-t-0 bg-black">
+                    <div className="flex-1 flex flex-col min-w-0 bg-[#0A0A0A] xl:border-r border-gray-800">
+                        <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
+                            <div className="max-w-[1800px] mx-auto space-y-6">
+                                {batchJobs.length === 0 ? (
+                                    <div className="h-[400px] flex flex-col items-center justify-center text-gray-600 gap-4 border-2 border-dashed border-gray-900 rounded-xl">
+                                        <ImageIcon size={48} className="opacity-20" />
+                                        <p className="font-mono text-xs tracking-widest uppercase shadow-sm">Attach a Seed frame to begin</p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                                        {batchJobs.map(job => (
+                                            <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                                <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
+                                                    <div className="flex flex-col overflow-hidden mr-2">
+                                                        <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2" title={job.taskId}>
+                                                            ID_{job.taskId.slice(-8).toUpperCase()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0">
+                                                        {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
+                                                        {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
+                                                        {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
+                                                    </div>
                                                 </div>
-                                            </>
-                                        )}
+                                                
+                                                <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
+                                                    {job.status === 'SUCCESS' && job.videoUrl ? (
+                                                        <video 
+                                                            controls 
+                                                            autoPlay 
+                                                            loop 
+                                                            muted
+                                                            crossOrigin="anonymous"
+                                                            className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30"
+                                                        >
+                                                            <source src={job.videoUrl} type="video/mp4" />
+                                                        </video>
+                                                    ) : (
+                                                        <div className="absolute inset-0 bg-[#0a0a0a] flex flex-col items-center justify-center z-10 p-4 text-center">
+                                                            {job.status === 'PROCESSING' && (
+                                                                <div className="bg-black/90 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl shadow-black relative z-20">
+                                                                    <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
+                                                                    <span className="text-teal-400 font-mono text-[10px] tracking-widest uppercase mb-1">Executing Matrix...</span>
+                                                                    <RenderTimer startedAt={job.startedAt} />
+                                                                </div>
+                                                            )}
+                                                            {job.status === 'FAILED' && (
+                                                                <div className="bg-black/90 p-4 rounded-xl border border-red-900 flex flex-col items-center">
+                                                                    <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
+                                                                    <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                    <div className="p-3 bg-[#111]">
-                                        <div className="flex justify-between items-center bg-[#0a0a0a] rounded px-2 py-1.5 border border-gray-800">
-                                            <span className="font-mono text-[10px] text-gray-500 truncate">{job.taskId.slice(-8)}</span>
-                                            {job.status === 'PROCESSING' ? (
-                                                <RenderTimer startedAt={job.startedAt} />
-                                            ) : (
-                                                <span className={`font-mono text-[10px] uppercase font-black tracking-widest px-2 py-0.5 rounded ${job.status === 'SUCCESS' ? 'text-teal-400 bg-teal-400/10' : 'text-red-400 bg-red-400/10'}`}>
-                                                    {job.status}
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                </Card>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right Terminal Sidebar */}
+                    <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
+                        <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
+                            <Terminal size={16} className="text-teal-500" />
+                            <span className="text-xs font-mono font-bold tracking-wider uppercase">Symphony Terminal</span>
+                        </div>
+                        <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
+                            {terminalLogs.map((log, i) => (
+                                <div key={i} className={`${log.includes("ERROR") || log.includes("LIMIT") || log.includes("FAILED") ? 'text-red-400' : 'text-teal-400'}`}>
+                                    {log}
+                                </div>
                             ))}
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         </div>
