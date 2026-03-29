@@ -122,7 +122,7 @@ export default function StockVideoStudio() {
         const points = sellingPoints.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10);
         
         const payload = {
-            aigc_video_type: "STOCK_VIDEO",
+            aigc_video_type: "VOICEOVER",
             product_video_info: {
                 video_generation_count: 1,
                 target_language: "en",
