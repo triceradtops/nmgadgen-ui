@@ -166,7 +166,7 @@ export default function TextToVideoStudio() {
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Avatars</Button>
                         </Link>
                         <Link href="/symphony/stock-video">
-                            <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Stock Editor</Button>
+                            <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Remixer</Button>
                         </Link>
                         <Link href="/symphony/image-animation">
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Image to Video</Button>
