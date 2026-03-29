@@ -430,6 +430,9 @@ export default function SymphonyStudio() {
                         <Link href="/symphony/image-animation">
                             <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Image Animation</Button>
                         </Link>
+                        <Link href="/symphony/text-to-video">
+                            <Button variant="ghost" className="text-gray-400 hover:bg-gray-800 hover:text-white font-mono text-xs uppercase tracking-wider h-9 transition-all shrink-0">Text to Video</Button>
+                        </Link>
                     </nav>
                 </div>
                 <div className="flex gap-2">
