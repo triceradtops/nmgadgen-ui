@@ -122,7 +122,7 @@ export default function StockVideoStudio() {
         const points = sellingPoints.split('\n').map(l => l.trim()).filter(Boolean).slice(0, 10);
         
         const payload = {
-            aigc_video_type: "VOICEOVER",
+            aigc_video_type: "STOCK_VIDEO",
             product_video_info: {
                 video_generation_count: 1,
                 target_language: "en",
@@ -131,8 +131,8 @@ export default function StockVideoStudio() {
                 subtitle_enabled: true,
                 product_info_list: [{
                     product_name: productName.slice(0, 50),
-                    description: productDesc.slice(0, 500),
-                    selling_points: points.length ? points : ["Standard product"]
+                    product_description: productDesc.slice(0, 500),
+                    product_selling_points: points.length ? points : ["Standard product"]
                 }]
             }
         };
