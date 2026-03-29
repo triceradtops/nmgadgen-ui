@@ -145,20 +145,32 @@ export default function StockVideoStudio() {
             });
             const data = await res.json();
             
-            if (res.status === 202 && data.status === "accepted") {
-                const tasks = data.task_data.list || [];
-                const newJobs = tasks.map((t: any) => ({
-                    taskId: t.task_id,
-                    productName,
-                    status: 'PROCESSING',
-                    startedAt: Date.now()
-                }));
+            if (res.ok && data.status === "accepted") {
+                const tasks = data.task_data?.list || data.task_data?.task_ids || (data.task_data?.task_id ? [data.task_data.task_id] : []);
                 
-                setBatchJobs(prev => [...prev, ...newJobs]);
-                setLoading(false);
-                setProductName(""); // Clear UI buffer partially
-                
-                newJobs.forEach((job: any) => pollResults(job.taskId));
+                if (tasks.length > 0) {
+                    const newJobs = tasks.map((t: any) => ({
+                        taskId: t.task_id || t,
+                        productName,
+                        status: 'PROCESSING',
+                        startedAt: Date.now()
+                    }));
+                    
+                    setBatchJobs(prev => [...prev, ...newJobs]);
+                    setLoading(false);
+                    setProductName(""); // Clear UI buffer partially
+                    
+                    newJobs.forEach((job: any) => pollResults(job.taskId));
+                } else {
+                    setBatchJobs(prev => [...prev, {
+                        taskId: `fail_api_silence_${Date.now()}`,
+                        productName: productName.trim() || 'Unknown Target',
+                        status: 'FAILED',
+                        errorDetails: "TikTok accepted the request but generated no render tasks internally. Check text constraint limits.",
+                        startedAt: Date.now()
+                    }]);
+                    setLoading(false);
+                }
             } else {
                 setBatchJobs(prev => [...prev, {
                     taskId: `fail_api_${Date.now()}`,
