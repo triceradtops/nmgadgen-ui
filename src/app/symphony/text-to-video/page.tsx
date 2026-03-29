@@ -99,9 +99,9 @@ export default function TextToVideoStudio() {
             const data = await res.json();
             
             if (res.status === 202 && data.status === "accepted") {
-                const tasks = data.task_data.list || [];
+                const tasks = data.task_data?.list || data.task_data?.task_ids || (data.task_data?.task_id ? [data.task_data.task_id] : []);
                 const newJobs = tasks.map((t: any) => ({
-                    taskId: t.task_id,
+                    taskId: t.task_id || t,
                     promptText: textPrompt.trim(),
                     status: 'PROCESSING',
                     startedAt: Date.now()
