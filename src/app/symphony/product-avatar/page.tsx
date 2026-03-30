@@ -371,13 +371,14 @@ export default function ProductAvatarStudio() {
                                     <Input 
                                         value={productName} 
                                         onChange={e => setProductName(e.target.value)} 
-                                        className="bg-[#0a0a0a] border-gray-800 font-mono text-xs focus:ring-teal-500 placeholder-gray-600 outline-none"
+                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 placeholder-gray-600 outline-none"
                                         placeholder="Product Name"
                                     />
                                     <Textarea 
                                         value={description} 
                                         onChange={e => setDescription(e.target.value)} 
-                                        className="bg-[#0a0a0a] border-gray-800 font-mono text-xs focus:ring-teal-500 outline-none resize-none h-20 placeholder-gray-600"
+                                        rows={4}
+                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 outline-none resize-none placeholder-gray-600"
                                         placeholder="Detailed description..."
                                     />
                                 </div>
@@ -401,7 +402,7 @@ export default function ProductAvatarStudio() {
                                         <div className="flex gap-2 relative">
                                             <Input 
                                                 placeholder="Add selling point and press Enter..." 
-                                                className="bg-[#111] border-dashed border-gray-700 font-mono text-xs pr-8 focus:ring-teal-500 placeholder-gray-600 outline-none h-9"
+                                                className="bg-[#111] border-dashed border-gray-700 text-white font-mono text-xs pr-8 focus:ring-teal-500 placeholder-gray-600 outline-none h-9"
                                                 onKeyDown={e => {
                                                     if (e.key === 'Enter') {
                                                         addPoint(e.currentTarget.value);
@@ -575,7 +576,7 @@ export default function ProductAvatarStudio() {
                                     placeholder="🔍 Search ID or Name..." 
                                     value={searchQuery}
                                     onChange={e => setSearchQuery(e.target.value)}
-                                    className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
+                                    className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
                                 />
                                 
                                 <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
