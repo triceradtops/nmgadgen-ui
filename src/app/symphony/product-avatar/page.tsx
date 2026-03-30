@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, X, Terminal, Loader2, ImageIcon, Plus, User, FileVideo, RefreshCw, Presentation, Search, ShieldCheck } from "lucide-react";
+import { Play, Pause, ChevronRight, FileVideo, LayoutGrid, X, Search, Check, ChevronDown, RefreshCw, Menu, ChevronLeft, Terminal, Loader2, Square, CheckCircle2, Video, User, ImageIcon, Presentation, UploadCloud, Plus } from "lucide-react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -60,11 +60,15 @@ export default function ProductAvatarStudio() {
 
     const [batchJobs, setBatchJobs] = useState<BatchJob[]>([]);
 
-    // Avatar filters
+    // Filter Sets
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedTags, setSelectedTags] = useState<string[]>([]);
     const [activeIdentityTab, setActiveIdentityTab] = useState<'real' | 'aigc'>('real');
     
+    const [filterGesture, setFilterGesture] = useState("All");
+    const [filterAge, setFilterAge] = useState("All");
+    const [filterGender, setFilterGender] = useState("All");
+    const [filterScene, setFilterScene] = useState("All");
+
     const appendLog = (msg: string) => {
         setTerminalLogs(prev => [...prev.slice(-49), `[${new Date().toLocaleTimeString()}] ${msg}`]);
     };
@@ -240,20 +244,11 @@ export default function ProductAvatarStudio() {
         }
     };
 
-    // Calculate dynamic tags from avatars
-    const allUniqueTags = new Set<string>();
-    avatars.forEach(a => {
-        a.tag_groups?.forEach((g: any) => {
-            if (g.tag_type !== 'identity') {
-                g.tags?.forEach((t: string) => allUniqueTags.add(`${g.tag_type}:${t}`));
-            }
-        });
-    });
-    const dynamicTagsArray = Array.from(allUniqueTags).sort();
-
-    const handleTagToggle = (tag: string) => {
-        setSelectedTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]);
-    };
+    // Derived Sets exactly like original but mapping gesture/age/gender/background
+    const gestures = ["All", ...Array.from(new Set(avatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'gesture').flatMap((g: any) => g.tags) || [])))];
+    const ages = ["All", ...Array.from(new Set(avatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'age').flatMap((g: any) => g.tags) || [])))];
+    const genders = ["All", ...Array.from(new Set(avatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'gender').flatMap((g: any) => g.tags) || [])))];
+    const scenes = ["All", ...Array.from(new Set(avatars.flatMap(a => a.tag_groups?.filter((g: any) => g.tag_type?.toLowerCase() === 'scene' || g.tag_type?.toLowerCase() === 'background').flatMap((g: any) => g.tags) || [])))];
 
     const isMatch = (a: any) => {
         let match = true;
@@ -267,14 +262,17 @@ export default function ProductAvatarStudio() {
             match = false;
         }
 
-        // Tag matching (ALL selected tags must be present in avatar tags)
-        if (selectedTags.length > 0) {
-            const avatarTagSet = new Set<string>();
-            a.tag_groups?.forEach((g: any) => g.tags?.forEach((t: string) => avatarTagSet.add(`${g.tag_type}:${t}`)));
-            for (const reqTag of selectedTags) {
-                if (!avatarTagSet.has(reqTag)) match = false;
-            }
-        }
+        const avatarGestures = a.tag_groups?.find((g: any) => g.tag_type?.toLowerCase() === 'gesture')?.tags || [];
+        if (filterGesture !== "All" && !avatarGestures.includes(filterGesture)) match = false;
+
+        const avatarAges = a.tag_groups?.find((g: any) => g.tag_type?.toLowerCase() === 'age')?.tags || [];
+        if (filterAge !== "All" && !avatarAges.includes(filterAge)) match = false;
+
+        const avatarGenders = a.tag_groups?.find((g: any) => g.tag_type?.toLowerCase() === 'gender')?.tags || [];
+        if (filterGender !== "All" && !avatarGenders.includes(filterGender)) match = false;
+
+        const avatarScenes = a.tag_groups?.find((g: any) => g.tag_type?.toLowerCase() === 'scene' || g.tag_type?.toLowerCase() === 'background')?.tags || [];
+        if (filterScene !== "All" && !avatarScenes.includes(filterScene)) match = false;
         
         return match;
     };
@@ -284,7 +282,6 @@ export default function ProductAvatarStudio() {
     // Group them for display like in original avatars page
     const groupedMap = new Map<string, any[]>();
     filteredAvatars.forEach(a => {
-        // use base name without trailing _1 or _2 to group
         const baseName = a.avatar_name?.replace(/_\d+$/, '') || a.avatar_id;
         if (!groupedMap.has(baseName)) groupedMap.set(baseName, []);
         groupedMap.get(baseName)!.push(a);
@@ -300,11 +297,11 @@ export default function ProductAvatarStudio() {
     });
 
     return (
-        <div className="flex h-screen bg-[#050505] text-gray-200 overflow-hidden font-sans">
+        <div className="flex h-screen bg-black text-gray-200 overflow-hidden font-sans">
             <div className="flex w-full h-full relative">
                 
                 {/* Left Mini-Rail Navigation */}
-                <div className="w-16 bg-[#030303] border-r border-[#1a1a1a] flex flex-col items-center py-6 gap-6 shrink-0 z-50">
+                <div className="w-16 bg-[#050505] border-r border-[#1a1a1a] flex flex-col items-center py-6 gap-6 shrink-0 z-50">
                     <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.15)] mb-4 cursor-pointer" onClick={() => setIsConfigOpen(!isConfigOpen)}>
                         <Menu className="text-teal-400" size={20} />
                     </div>
@@ -341,18 +338,17 @@ export default function ProductAvatarStudio() {
                     </Link>
                 </div>
 
-                {/* Configuration Sidebar */}
-                <div className={`bg-[#0a0a0a] border-r border-gray-800 overflow-y-auto scrollbar-thin transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}>
+                {/* Configuration Sidebar EXACTLY like symphony/page.tsx */}
+                <div className={`bg-[#111] border-r border-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}>
                     <div className="space-y-6 w-full min-w-[350px]">
-                        <Card className="bg-black border-teal-900/30 shadow-sm relative overflow-hidden">
-                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30 py-4 flex justify-between flex-row items-center border-l-4 border-l-teal-500 relative">
-                                <CardTitle className="text-lg font-mono uppercase tracking-wider pl-4">Product Avatar Setting</CardTitle>
-                                {selectedAvatarId && <span className="text-[10px] bg-teal-500/20 text-teal-400 px-2 py-1 rounded font-mono mr-4">AVATAR LATCHED</span>}
+                        <Card className="bg-black border-teal-900/30 shadow-sm border">
+                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30 py-4 flex justify-between flex-row items-center">
+                                <CardTitle className="text-lg font-mono uppercase tracking-wider">Product Avatar Setting</CardTitle>
                             </CardHeader>
-                            <CardContent className="pt-6 space-y-6 relative z-10">
+                            <CardContent className="pt-4 space-y-4">
                                 
-                                <div className="space-y-4">
-                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">1. Product Details</Label>
+                                <div className="space-y-2">
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Product Details</Label>
                                     <Input 
                                         value={productName} 
                                         onChange={e => setProductName(e.target.value)} 
@@ -362,20 +358,20 @@ export default function ProductAvatarStudio() {
                                     <Textarea 
                                         value={description} 
                                         onChange={e => setDescription(e.target.value)} 
-                                        className="bg-[#0a0a0a] border-gray-800 font-mono text-xs focus:ring-teal-500 outline-none resize-none h-24 placeholder-gray-600"
+                                        className="bg-[#0a0a0a] border-gray-800 font-mono text-xs focus:ring-teal-500 outline-none resize-none h-20 placeholder-gray-600"
                                         placeholder="Detailed description..."
                                     />
                                 </div>
                                 
-                                <div className="space-y-4">
+                                <div className="space-y-2">
                                     <Label className="font-bold text-gray-400 font-mono text-xs uppercase flex justify-between">
-                                        <span>2. Value Propositions (Max 5)</span>
+                                        <span>Value Propositions (Max 5)</span>
                                         <span className="text-teal-500">{sellingPoints.length}/5</span>
                                     </Label>
                                     <div className="space-y-2">
                                         {sellingPoints.map((pt, idx) => (
                                             <div key={idx} className="flex gap-2">
-                                                <div className="bg-[#0a0a0a] border border-gray-800 text-xs font-mono p-2.5 rounded-lg flex-1 flex justify-between items-center group">
+                                                <div className="bg-[#0a0a0a] border border-gray-800 text-xs font-mono p-2 rounded flex-1 flex justify-between items-center group">
                                                     <span className="text-gray-300">{pt}</span>
                                                     <X size={14} className="text-gray-600 hover:text-red-400 cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => removePoint(idx)} />
                                                 </div>
@@ -386,7 +382,7 @@ export default function ProductAvatarStudio() {
                                         <div className="flex gap-2 relative">
                                             <Input 
                                                 placeholder="Add selling point and press Enter..." 
-                                                className="bg-[#111] border-dashed border-gray-700 font-mono text-xs pr-8 focus:ring-teal-500 placeholder-gray-600 outline-none h-10"
+                                                className="bg-[#111] border-dashed border-gray-700 font-mono text-xs pr-8 focus:ring-teal-500 placeholder-gray-600 outline-none h-9"
                                                 onKeyDown={e => {
                                                     if (e.key === 'Enter') {
                                                         addPoint(e.currentTarget.value);
@@ -399,20 +395,20 @@ export default function ProductAvatarStudio() {
                                     )}
                                 </div>
 
-                                <div className="space-y-4 pt-6 border-t border-teal-900/10">
-                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">3. Audio Settings</Label>
-                                    <div className="flex gap-3">
+                                <div className="space-y-2 pt-4 border-t border-teal-900/10">
+                                    <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Audio Settings</Label>
+                                    <div className="flex gap-2">
                                         <select 
                                             value={selectedVoiceId || ''} 
                                             onChange={e => setSelectedVoiceId(e.target.value)}
-                                            className="w-full h-10 px-3 rounded-lg bg-[#0a0a0a] border border-gray-800 text-gray-300 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500"
+                                            className="w-full h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-300 text-[10px] font-mono outline-none focus:ring-1 focus:ring-teal-500"
                                         >
                                             {voices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.voice_name || v.voice_id}</option>)}
                                         </select>
                                         <select 
                                             value={targetLanguage} 
                                             onChange={e => setTargetLanguage(e.target.value)}
-                                            className="w-24 shrink-0 h-10 px-2 rounded-lg bg-[#0a0a0a] border border-gray-800 text-gray-300 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 uppercase"
+                                            className="w-20 shrink-0 h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-300 text-[10px] font-mono outline-none focus:ring-1 focus:ring-teal-500 uppercase"
                                         >
                                             <option value="en">EN</option>
                                             <option value="es">ES</option>
@@ -422,251 +418,236 @@ export default function ProductAvatarStudio() {
                                     </div>
                                 </div>
                                 
-                                <div className="space-y-4 pt-6 border-t border-teal-900/10">
+                                <div className="space-y-2 pt-4 border-t border-teal-900/10">
                                     <div className="flex justify-between items-center">
-                                        <Label className="font-bold text-gray-400 font-mono text-xs uppercase">4. Visual Assets</Label>
-                                        <span className="text-[10px] text-gray-500 font-mono bg-[#111] px-2 py-1 rounded-md border border-gray-800">{localImages.length} Img / {localVideos.length} Vid</span>
+                                        <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Visual Assets</Label>
+                                        <span className="text-[10px] text-gray-500 font-mono bg-transparent">{localImages.length} Img / {localVideos.length} Vid</span>
                                     </div>
                                     
-                                    <div className="grid grid-cols-4 gap-3">
+                                    <div className="grid grid-cols-4 gap-2">
                                         {localImages.map((img, idx) => (
-                                            <div key={idx} className="aspect-square bg-[#0a0a0a] rounded-lg border border-gray-800 relative group overflow-hidden shadow-inner">
+                                            <div key={idx} className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 relative group overflow-hidden">
                                                 <img src={img.url} className="w-full h-full object-cover" />
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity backdrop-blur-[2px]">
-                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-125 transition-transform" onClick={() => removeImage(idx)} />
+                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-110 transition-transform" onClick={() => removeImage(idx)} />
                                                 </div>
                                             </div>
                                         ))}
                                         {localVideos.map((vid, idx) => (
-                                            <div key={idx} className="aspect-square bg-[#0a0a0a] rounded-lg border border-gray-800 relative group overflow-hidden shadow-inner">
+                                            <div key={idx} className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 relative group overflow-hidden">
                                                 <video src={vid.url} className="w-full h-full object-cover" />
                                                 <div className="absolute inset-0 flex items-center justify-center text-teal-500 font-bold bg-black/30 pointer-events-none drop-shadow-md"><Video size={16}/></div>
                                                 <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity backdrop-blur-[2px]">
-                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-125 transition-transform pointer-events-auto" onClick={() => removeVideo(idx)} />
+                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-110 transition-transform pointer-events-auto" onClick={() => removeVideo(idx)} />
                                                 </div>
                                             </div>
                                         ))}
                                         {localImages.length + localVideos.length < 30 && (
-                                            <div className="aspect-square bg-[#0a0a0a] border border-dashed border-gray-700/60 rounded-lg hover:bg-[#111] hover:border-teal-500/50 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50" onClick={() => fileInputRef.current?.click()}>
+                                            <div className="aspect-square bg-[#0a0a0a] border border-dashed border-gray-700 rounded hover:bg-[#111] hover:border-teal-500/50 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50" onClick={() => fileInputRef.current?.click()}>
                                                 <UploadCloud size={20} className="text-gray-500" />
                                             </div>
                                         )}
                                         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,video/*" onChange={handleFileUpload} />
                                     </div>
-                                    <p className="text-[10px] text-gray-500 font-mono mt-2 leading-relaxed bg-[#111] p-3 rounded-lg border border-gray-800">Must provide images or short videos of the physical product so that the Avatar can refer to them during generation.</p>
+                                    <p className="text-[10px] text-gray-500 font-mono mt-2 leading-tight">Must provide images or short videos of the physical product so that the Avatar can refer to them during generation.</p>
                                 </div>
-
-                                <Button 
-                                    onClick={handleGenerate} 
-                                    disabled={loading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)} 
-                                    className="w-full mt-6 h-14 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border border-teal-400 shadow-[0_0_20px_rgba(20,184,166,0.2)] disabled:opacity-50 disabled:border-transparent transition-all rounded-xl"
-                                >
-                                    {loading ? "[ COMPILING PRODUCT... ]" : `[ GENERATE AVATAR PRODUCT ]`}
-                                </Button>
-                                {(localImages.length === 0 && localVideos.length === 0) && <p className="text-[10px] font-mono text-center text-red-500 animate-pulse pt-2">Missing visual assets!</p>}
                             </CardContent>
                         </Card>
+
+                        <div className="space-y-2">
+                            <Button 
+                                onClick={handleGenerate} 
+                                disabled={loading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)} 
+                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all"
+                            >
+                                {loading ? "[ COMPILING PRODUCT... ]" : `[ GENERATE AVATAR PRODUCT ]`}
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                {/* Main Dynamic Viewport */}
-                <div className="flex-1 overflow-x-hidden overflow-y-auto bg-black p-6 scrollbar-thin scrollbar-thumb-gray-800 flex flex-col min-h-0 relative">
+                {/* Main Dynamic Viewport EXACTLY like symphony/page.tsx */}
+                <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
+                    <div className="max-w-[1800px] mx-auto space-y-6">
                     
-                    {/* Active Jobs Rendering Box */}
-                    {batchJobs.length > 0 && (
-                        <div className="mb-6 space-y-4 shrink-0 border border-gray-800 bg-[#0a0a0a] p-4 rounded-xl relative overflow-hidden group">
-                            <div className="absolute top-0 left-0 w-1 h-full bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.5)]"></div>
-                            <div className="flex justify-between items-center mb-2 border-b border-gray-800 pb-3 z-10 relative">
-                                <h2 className="text-teal-400 font-mono uppercase tracking-widest text-sm font-bold flex items-center gap-2 pl-2">
-                                    <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div> Render Outputs
-                                </h2>
-                                <Button onClick={() => setBatchJobs([])} variant="outline" className="border-teal-500/50 text-teal-400 hover:text-white font-mono text-xs hover:bg-teal-900/40 h-8">
-                                    [ CLEAR_QUEUE ]
-                                </Button>
-                            </div>
-                        
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5 z-10 relative">
-                                {batchJobs.map((job) => (
-                                    <div key={job.taskId} className={`bg-black overflow-hidden rounded-xl border-2 flex flex-col relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : job.status === 'FAILED' ? 'border-red-900/80 shadow-[0_0_15px_rgba(220,38,38,0.1)]' : 'border-gray-800'}`}>
-                                        <div className="bg-[#111] border-b border-gray-800 px-3 py-2.5 flex justify-between items-center z-10">
-                                            <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2">
-                                                Task {job.taskId.slice(-4)}
-                                            </span>
-                                            <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-black border border-gray-800 flex items-center gap-1.5 shrink-0 shadow-inner">
-                                                {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
-                                                {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
-                                                {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
-                                            </div>
-                                        </div>
-                                        
-                                        <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
-                                            {job.status === 'SUCCESS' && job.videoUrl ? (
-                                                <video src={job.videoUrl} controls muted loop crossOrigin="anonymous" className="w-full h-full object-cover shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30" />
-                                            ) : (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
-                                                    {job.status === 'PROCESSING' && (
-                                                        <div className="bg-[#050505]/95 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl backdrop-blur-md">
-                                                            <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
-                                                            <span className="text-teal-400 font-mono text-[9px] tracking-widest uppercase mb-1">Generating Avatar Remixer...</span>
-                                                            <RenderTimer startedAt={job.startedAt} />
-                                                        </div>
-                                                    )}
-                                                    {job.status === 'FAILED' && (
-                                                        <div className="bg-[#050505]/95 p-4 rounded-xl border-l-4 border-l-red-500 border border-gray-800 flex flex-col items-center backdrop-blur-md">
-                                                            <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
-                                                            <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Digital Avatar Grid Picker */}
-                    <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a] rounded-xl border border-gray-800 overflow-hidden shadow-2xl relative">
-                        <div className="p-5 border-b border-gray-800 bg-[#111] shrink-0 sticky top-0 z-20 shadow-md">
-                            <div className="flex justify-between items-center mb-5">
-                                <div>
-                                    <h2 className="text-gray-100 font-sans font-bold text-xl flex items-center gap-3 tracking-tight">
-                                        <User className="text-teal-500" size={24} /> Select Target Avatar
-                                        {selectedAvatarId && <ShieldCheck className="text-green-500 ml-1" size={20} />}
+                        {/* Active Jobs Rendering Box */}
+                        {batchJobs.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
+                                    <h2 className="text-teal-400 font-mono uppercase tracking-widest text-sm font-bold flex items-center gap-2">
+                                        <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div> Active Matrix Sequence
                                     </h2>
-                                    <p className="text-xs text-gray-400 font-mono mt-1.5 ml-1">This digital twin will physically hold or present your dummy product assets on camera.</p>
+                                    <Button onClick={() => setBatchJobs([])} variant="outline" className="border-teal-500/50 text-teal-400 hover:text-white font-mono text-xs hover:bg-teal-900/40 h-8">
+                                        [ RESET_WORKSPACE ]
+                                    </Button>
                                 </div>
-                                <div className="flex gap-5 border-b border-gray-800 self-end">
-                                    <button 
-                                        onClick={() => setActiveIdentityTab('real')}
-                                        className={`font-sans font-semibold text-sm transition-colors relative pb-3 flex items-center gap-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        Real-human
-                                        {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.8)]" />}
-                                    </button>
-                                    <button 
-                                        onClick={() => setActiveIdentityTab('aigc')}
-                                        className={`font-sans font-semibold text-sm transition-colors relative pb-3 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                    >
-                                        AI-generated
-                                        {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500 shadow-[0_0_10px_rgba(20,184,166,0.8)]" />}
-                                    </button>
-                                </div>
-                            </div>
                             
-                            {/* Dynamic Tag Filter Strip */}
-                            <div className="flex gap-3 items-center flex-wrap pt-2">
-                                <Search size={16} className="text-gray-500" />
-                                <Input 
-                                    placeholder="Search specific ID or Name..." 
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="h-10 w-56 bg-black border-gray-800 text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500 rounded-lg"
-                                />
-                                <div className="w-[1px] h-6 bg-gray-800 mx-2"></div>
-                                <select 
-                                    className="h-10 px-3 rounded-lg bg-black border border-gray-800 text-teal-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize max-w-[280px]"
-                                    onChange={e => {
-                                        if (e.target.value && e.target.value !== "NONE") handleTagToggle(e.target.value);
-                                        e.target.value = "NONE";
-                                    }}
-                                    value="NONE"
-                                >
-                                    <option value="NONE">+ Filter by Special Tag Attribute...</option>
-                                    {dynamicTagsArray.map(t => <option key={t} value={t}>{t.replace(/:/g, ' - ').replace(/_/g, ' ')}</option>)}
-                                </select>
-                                
-                                <div className="flex flex-wrap gap-2 ml-2">
-                                    {selectedTags.map(tag => (
-                                        <div key={tag} className="flex items-center gap-1.5 bg-teal-500/10 text-teal-400 border border-teal-500/30 px-2.5 py-1.5 rounded-lg text-xs font-mono capitalize tracking-wide shadow-sm">
-                                            {tag.replace(/:/g, ' : ').replace(/_/g, ' ')}
-                                            <X size={14} className="cursor-pointer hover:text-white" onClick={() => handleTagToggle(tag)} />
-                                        </div>
-                                    ))}
-                                    {selectedTags.length > 0 && <span className="text-[10px] text-gray-500 font-mono ml-2 cursor-pointer hover:underline self-center hover:text-gray-300" onClick={() => setSelectedTags([])}>Clear All</span>}
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-gray-800">
-                            {avatars.length === 0 ? (
-                                <div className="text-center flex flex-col items-center justify-center py-20 text-teal-600/50 font-mono text-sm">
-                                    <Loader2 className="w-10 h-10 animate-spin mb-4 text-teal-500/50" />
-                                    <span>&gt; Mapping neural avatar lattice...</span>
-                                </div>
-                            ) : filteredAvatarGroups.length === 0 ? (
-                                <div className="text-center py-20 text-gray-600 font-mono text-sm border-2 border-dashed border-gray-800 rounded-xl m-10">
-                                    &gt; Query returned no avatars matching these semantic filters.
-                                </div>
-                            ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                                    {filteredAvatarGroups.map(group => {
-                                        // Pick the primary avatar from the group
-                                        const rep = group.representativeAvatar;
-                                        const isSelected = selectedAvatarId === rep.avatar_id;
-                                        
-                                        return (
-                                            <div 
-                                                key={rep.avatar_id}
-                                                onClick={() => setSelectedAvatarId(rep.avatar_id)}
-                                                className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 bg-black shadow-lg hover:shadow-xl ${isSelected ? 'border-teal-500 shadow-[0_0_25px_rgba(20,184,166,0.3)] scale-[1.02]' : 'border-gray-800 hover:border-gray-600 hover:scale-[1.01]'}`}
-                                            >
-                                                <img 
-                                                    src={rep.avatar_thumbnail} 
-                                                    alt={rep.avatar_name}
-                                                    className="w-full h-auto object-cover aspect-[9/16]"
-                                                />
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/20 to-transparent pointer-events-none transition-opacity"></div>
-                                                
-                                                <div className="absolute bottom-0 left-0 right-0 p-4 pointer-events-none">
-                                                    <p className="text-gray-100 font-mono text-sm font-bold truncate tracking-tight">{rep.avatar_name}</p>
-                                                    <p className="text-gray-500 text-[9px] font-mono tracking-widest mt-0.5 mb-2">{rep.avatar_id}</p>
-                                                    
-                                                    <div className="flex flex-wrap gap-1 mt-1">
-                                                    {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
-                                                        <span key={idx} className={`text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border ${isSelected ? 'bg-teal-500/20 text-teal-300 border-teal-500/30' : 'bg-[#111] text-gray-400 border-gray-700'}`}>
-                                                            {g.tags?.[0]?.substring(0, 15)}
-                                                        </span>
-                                                    ))}
-                                                    {rep.tag_groups?.length > 4 && <span className="bg-[#111] border-gray-700 text-gray-500 text-[9px] px-1 py-0.5 rounded border">+{rep.tag_groups.length - 4}</span>}
-                                                    </div>
+                                    {batchJobs.map((job) => (
+                                        <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
+                                            <div className="bg-[#111] border-b border-gray-800 px-3 py-2 flex justify-between items-center z-10">
+                                                <span className="text-teal-400 font-bold font-mono text-[10px] truncate flex items-center gap-2">
+                                                    Task {job.taskId.slice(-4)}
+                                                </span>
+                                                <div className="font-mono text-[9px] uppercase tracking-widest px-2 py-1 rounded bg-[#0a0a0a] border border-gray-800 flex items-center gap-1.5 shrink-0 shadow-inner">
+                                                    {job.status === 'PROCESSING' && <><div className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></div><span className="text-yellow-500">Node</span></>}
+                                                    {job.status === 'SUCCESS' && <><div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div><span className="text-green-400">Idle</span></>}
+                                                    {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
                                                 </div>
-                                                
-                                                {/* Select overlay */}
-                                                {isSelected && (
-                                                    <div className="absolute inset-x-0 inset-y-0 bg-teal-500/10 flex justify-center items-start pointer-events-none">
-                                                        <div className="bg-teal-500 text-black font-mono font-bold text-xs uppercase px-4 py-1.5 rounded-b-xl shadow-lg h-fit flex items-center gap-1.5 mt-0"><CheckCircle2 size={12}/> Target Assigned</div>
+                                            </div>
+                                            
+                                            <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
+                                                {job.status === 'SUCCESS' && job.videoUrl ? (
+                                                    <video src={job.videoUrl} controls muted loop crossOrigin="anonymous" className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30" />
+                                                ) : (
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 p-4 text-center">
+                                                        {job.status === 'PROCESSING' && (
+                                                            <div className="bg-[#050505]/95 p-5 rounded-xl border border-gray-800 flex flex-col items-center shadow-2xl backdrop-blur-md">
+                                                                <Loader2 className="w-8 h-8 text-teal-400 animate-spin mb-3" />
+                                                                <span className="text-teal-400 font-mono text-[9px] tracking-widest uppercase mb-1">Executing...</span>
+                                                                <RenderTimer startedAt={job.startedAt} />
+                                                            </div>
+                                                        )}
+                                                        {job.status === 'FAILED' && (
+                                                            <div className="bg-[#050505]/95 p-4 rounded-xl border-l-4 border-l-red-500 border border-gray-800 flex flex-col items-center backdrop-blur-md">
+                                                                <span className="text-red-500 font-bold font-mono text-[10px] uppercase mb-2">CRITICAL REJECTION</span>
+                                                                <span className="text-gray-400 font-mono text-[9px] break-words line-clamp-3 overflow-hidden">{job.errorDetails}</span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
-                                        );
-                                    })}
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
+                            </div>
+                        )}
+
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Target Avatar</h2>
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-xs font-mono font-bold text-teal-500`}>{selectedAvatarId ? '1' : '0'}/1 Selected</span>
+                                    <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
+                                </div>
+                            </div>
+                            
+                            <div className="flex gap-4 border-b border-gray-800 pb-2">
+                                <button 
+                                    onClick={() => setActiveIdentityTab('real')}
+                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    Real-human
+                                    {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                </button>
+                                <button 
+                                    onClick={() => setActiveIdentityTab('aigc')}
+                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    AI-generated
+                                    {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                </button>
+                            </div>
                         </div>
+
+                        {avatars.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
+                                <Input 
+                                    placeholder="🔍 Search ID or Name..." 
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
+                                />
+                                
+                                <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                    {gestures.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gesture' : opt.replace(/_/g, ' ')}</option>)}
+                                </select>
+                                
+                                <select value={filterAge} onChange={e => setFilterAge(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                    {ages.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Age' : opt.replace(/_/g, ' ')}</option>)}
+                                </select>
+                                
+                                <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                    {genders.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gender' : opt.replace(/_/g, ' ')}</option>)}
+                                </select>
+                                
+                                <select value={filterScene} onChange={e => setFilterScene(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                    {scenes.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Background' : opt.replace(/_/g, ' ')}</option>)}
+                                </select>
+                            </div>
+                        )}
+                            
+                        {avatars.length === 0 ? (
+                            <div className="text-center py-20 text-gray-600 font-mono text-sm animate-pulse">
+                                &gt; Loading global avatar database...
+                            </div>
+                        ) : filteredAvatarGroups.length === 0 ? (
+                            <div className="text-center py-20 text-gray-600 font-mono text-sm">
+                                &gt; No avatars match the selected structural filters.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                                {filteredAvatarGroups.map(group => {
+                                    // Pick the primary avatar from the group
+                                    const rep = group.representativeAvatar;
+                                    const isSelected = selectedAvatarId === rep.avatar_id;
+                                    
+                                    return (
+                                        <div 
+                                            key={rep.avatar_id}
+                                            onClick={() => setSelectedAvatarId(rep.avatar_id)}
+                                            className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${isSelected ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'border-transparent hover:border-gray-600'}`}
+                                        >
+                                            <img 
+                                                src={rep.avatar_thumbnail} 
+                                                alt={rep.avatar_name}
+                                                className="w-full h-auto object-cover aspect-[9/16]"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                                            
+                                            <div className="absolute bottom-0 left-0 right-0 p-3">
+                                                <p className="text-white font-mono text-xs font-bold truncate">{rep.avatar_name}</p>
+                                                
+                                                <div className="flex gap-1 mt-1 overflow-x-hidden">
+                                                {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
+                                                    <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
+                                                        {g.tags?.[0]}
+                                                    </span>
+                                                ))}
+                                                </div>
+                                            </div>
+                                            
+                                            {/* Select overlay exact copy of symphony/page.tsx overlay style */}
+                                            {isSelected && (
+                                                <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
+                                                    <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Avatar Selected</div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
                     </div>
                 </div>
 
                 {/* Persistent Terminal Layout component from other pages */}
-                <div className="fixed bottom-0 right-4 p-4 w-[400px] z-50 pointer-events-none">
-                    <div className="bg-black/95 backdrop-blur-md border border-gray-800 rounded-xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col pointer-events-auto">
-                        <div className="bg-[#111] px-4 py-2 border-b border-gray-800 flex items-center justify-between cursor-move">
+                <div className="fixed bottom-0 right-0 p-4 w-[400px] z-50 pointer-events-none">
+                    <div className="bg-black/90 backdrop-blur-md border border-gray-800 rounded-lg shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
+                        <div className="bg-[#111] px-3 py-1.5 border-b border-gray-800 flex items-center justify-between cursor-move">
                             <div className="flex items-center gap-2">
-                                <Terminal size={14} className="text-teal-500/70" />
-                                <span className="text-[10px] font-mono text-gray-400 uppercase tracking-widest">Symphony Link Sequence</span>
+                                <Terminal size={12} className="text-gray-500" />
+                                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Symphony Link Sequence</span>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-1.5">
                                 <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
                                 <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
                                 <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
                             </div>
                         </div>
-                        <div className="h-[180px] overflow-y-auto p-4 font-mono text-[10px] text-gray-500 flex flex-col gap-1.5 scrollbar-thin scrollbar-thumb-gray-800">
+                        <div className="h-[150px] overflow-y-auto p-3 font-mono text-[10px] text-gray-400 flex flex-col gap-1 scrollbar-thin scrollbar-thumb-gray-800">
                             {terminalLogs.map((log, i) => (
-                                <div key={i} className={`whitespace-pre-wrap leading-relaxed ${log.includes('ERROR') || log.includes('EXCEPTION') ? 'text-red-400' : log.includes('SUCCESS') || log.includes('accepted') ? 'text-teal-400' : ''}`}>
-                                    {log}
-                                </div>
+                                <div key={i} className={`whitespace-pre-wrap ${log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>{log}</div>
                             ))}
                         </div>
                     </div>
