@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { ChevronLeft, Menu, ChevronRight, Video, Loader2, Terminal, User, RefreshCw, ImageIcon, FileVideo } from "lucide-react";
+import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, X, Terminal, Loader2, ImageIcon, Plus, User, FileVideo, RefreshCw, Presentation } from "lucide-react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -186,6 +186,13 @@ export default function TextToVideoStudio() {
                         <ImageIcon size={20} />
                         <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-black border border-gray-800 text-gray-300 text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
                             Image to Video
+                        </span>
+                    </Link>
+
+                    <Link href="/symphony/product-avatar" className="p-3 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white border border-transparent group relative transition-all">
+                        <Presentation size={20} />
+                        <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-black border border-gray-800 text-gray-300 text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
+                            Product Avatar
                         </span>
                     </Link>
                     <Link href="/symphony/text-to-video" className="p-3 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.1)] group relative transition-all">

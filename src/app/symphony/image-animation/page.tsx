@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, ImageIcon, Terminal, Loader2, User, FileVideo, RefreshCw } from "lucide-react";
+import { Play, Square, ChevronLeft, Menu, Video, ChevronRight, UploadCloud, X, Terminal, Loader2, ImageIcon, Plus, User, FileVideo, RefreshCw, Presentation } from "lucide-react";
 import Link from 'next/link';
 
 interface BatchJob {
@@ -230,6 +230,12 @@ export default function ImageAnimationStudio() {
                         <FileVideo size={20} />
                         <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-black border border-gray-800 text-gray-300 text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
                             Text to Video
+                        </span>
+                    </Link>
+                    <Link href="/symphony/product-avatar" className="p-3 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white border border-transparent group relative transition-all">
+                        <Presentation size={20} />
+                        <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-black border border-gray-800 text-gray-300 text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
+                            Product Avatar
                         </span>
                     </Link>
                 </div>
