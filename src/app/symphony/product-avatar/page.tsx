@@ -297,14 +297,33 @@ export default function ProductAvatarStudio() {
     });
 
     return (
-        <div className="flex h-screen bg-black text-gray-200 overflow-hidden font-sans">
-            <div className="flex w-full h-full relative">
+        <div className="h-screen bg-[#0a0a0a] text-gray-300 flex flex-col font-sans overflow-hidden">
+            <div className="flex justify-between items-center bg-[#111] border-b border-gray-800 px-6 py-3 shrink-0">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => setIsConfigOpen(!isConfigOpen)}
+                            className="p-2 bg-[#0a0a0a] hover:bg-gray-800 rounded-md transition-colors text-gray-400 border border-gray-800"
+                        >
+                            {isConfigOpen ? <ChevronLeft size={20} /> : <Menu size={20} />}
+                        </button>
+                        <div>
+                            <h1 className="text-xl font-black tracking-tight text-teal-400 leading-none">NMG Symphony</h1>
+                            <p className="text-gray-500 text-xs mt-1 font-mono uppercase tracking-wider">TikTok Generative API Control</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Link href="/" className="text-gray-400 hover:text-gray-300 text-sm border border-gray-800 bg-gray-900/50 px-3 py-1.5 rounded-md transition-colors font-mono">
+                        [ BACK_TO_ADS ]
+                    </Link>
+                </div>
+            </div>
+
+            <div className="flex-1 flex overflow-hidden">
                 
                 {/* Left Mini-Rail Navigation */}
-                <div className="w-16 bg-[#050505] border-r border-[#1a1a1a] flex flex-col items-center py-6 gap-6 shrink-0 z-50">
-                    <div className="w-10 h-10 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.15)] mb-4 cursor-pointer" onClick={() => setIsConfigOpen(!isConfigOpen)}>
-                        <Menu className="text-teal-400" size={20} />
-                    </div>
+                <div className="w-16 bg-[#111] border-r border-gray-800 flex flex-col items-center py-4 gap-4 z-20 shrink-0">
                     
                     <Link href="/symphony" className="p-3 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white border border-transparent group relative transition-all">
                         <User size={20} />
