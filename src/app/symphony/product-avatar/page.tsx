@@ -378,7 +378,7 @@ export default function ProductAvatarStudio() {
                                         value={description} 
                                         onChange={e => setDescription(e.target.value)} 
                                         rows={4}
-                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 outline-none resize-none placeholder-gray-600"
+                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 outline-none resize-none overflow-hidden placeholder-gray-600"
                                         placeholder="Detailed description..."
                                     />
                                 </div>
@@ -543,45 +543,47 @@ export default function ProductAvatarStudio() {
                             </div>
                         )}
 
-                        <div className="flex flex-col gap-4 mb-4">
-                            <div className="flex justify-between items-center">
-                                <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Target Avatar</h2>
-                                <div className="flex items-center gap-4">
-                                    <span className={`text-xs font-mono font-bold text-teal-500`}>{selectedAvatarId ? '1' : '0'}/1 Selected</span>
-                                    <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
+                        {!loading && batchJobs.length === 0 && (
+                            <>
+                                <div className="flex flex-col gap-4 mb-4">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Target Avatar</h2>
+                                        <div className="flex items-center gap-4">
+                                            <span className={`text-xs font-mono font-bold text-teal-500`}>{selectedAvatarId ? '1' : '0'}/1 Selected</span>
+                                            <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="flex gap-4 border-b border-gray-800 pb-2">
+                                        <button 
+                                            onClick={() => setActiveIdentityTab('real')}
+                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            Real-human
+                                            {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                        </button>
+                                        <button 
+                                            onClick={() => setActiveIdentityTab('aigc')}
+                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                        >
+                                            AI-generated
+                                            {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div className="flex gap-4 border-b border-gray-800 pb-2">
-                                <button 
-                                    onClick={() => setActiveIdentityTab('real')}
-                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                >
-                                    Real-human
-                                    {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
-                                </button>
-                                <button 
-                                    onClick={() => setActiveIdentityTab('aigc')}
-                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                >
-                                    AI-generated
-                                    {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
-                                </button>
-                            </div>
-                        </div>
 
-                        {avatars.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
-                                <Input 
-                                    placeholder="🔍 Search ID or Name..." 
-                                    value={searchQuery}
-                                    onChange={e => setSearchQuery(e.target.value)}
-                                    className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
-                                />
-                                
-                                <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
-                                    {gestures.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gesture' : opt.replace(/_/g, ' ')}</option>)}
-                                </select>
+                                {avatars.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
+                                        <Input 
+                                            placeholder="🔍 Search ID or Name..." 
+                                            value={searchQuery}
+                                            onChange={e => setSearchQuery(e.target.value)}
+                                            className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
+                                        />
+                                        
+                                        <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                            {gestures.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gesture' : opt.replace(/_/g, ' ')}</option>)}
+                                        </select>
                                 
                                 <select value={filterAge} onChange={e => setFilterAge(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
                                     {ages.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Age' : opt.replace(/_/g, ' ')}</option>)}
@@ -648,10 +650,12 @@ export default function ProductAvatarStudio() {
                                 })}
                             </div>
                         )}
-                    </div>
+                        </>
+                    )}
                 </div>
+            </div>
 
-                {/* Persistent Terminal Layout component from other pages */}
+            {/* Persistent Terminal Layout component from other pages */}
                 <div className="fixed bottom-0 right-0 p-4 w-[400px] z-50 pointer-events-none">
                     <div className="bg-black/90 backdrop-blur-md border border-gray-800 rounded-lg shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
                         <div className="bg-[#111] px-3 py-1.5 border-b border-gray-800 flex items-center justify-between cursor-move">
@@ -673,7 +677,7 @@ export default function ProductAvatarStudio() {
                     </div>
                 </div>
 
-            </div>
+                </div>
         </div>
     );
 }
