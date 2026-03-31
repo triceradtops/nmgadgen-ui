@@ -103,21 +103,53 @@ export default function ProductAvatarStudio() {
         fetchVoices();
     }, []);
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [uploading, setUploading] = useState(false);
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length) return;
         const newFiles = Array.from(e.target.files);
         
-        newFiles.forEach(file => {
-            const url = URL.createObjectURL(file);
-            if (file.type.startsWith('image/')) {
-                setLocalImages(prev => [...prev, { url, file }]);
-                appendLog(`[MEDIA] Ingested image asset: ${file.name}`);
-            } else if (file.type.startsWith('video/')) {
-                const mockVideoId = `v_local_${Math.random().toString(36).substring(7)}`;
-                setLocalVideos(prev => [...prev, { id: mockVideoId, file, url }]);
-                appendLog(`[MEDIA] Cached local video asset: ${file.name} -> ${mockVideoId}`);
+        setUploading(true);
+        appendLog(`[MEDIA] Routing ${newFiles.length} raw assets to internal S3 gateway...`);
+        
+        for (const file of newFiles) {
+            const formData = new FormData();
+            formData.append("file", file);
+
+            try {
+                const res = await fetch("/api/upload", {
+                    method: "POST",
+                    headers: {
+                        "x-access-code": localStorage.getItem("site_access_code") || process.env.NEXT_PUBLIC_ACCESS_CODE || "nmg_super_secret_2026",
+                    },
+                    body: formData,
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.url) {
+                        if (file.type.startsWith('image/')) {
+                            setLocalImages(prev => [...prev, { url: data.url, file: null }]);
+                            appendLog(`[MEDIA] Fully ingested active S3 image asset: ${file.name}`);
+                        } else if (file.type.startsWith('video/')) {
+                            // TikTok accepts native video URLs here if we lack TikTok-hosted video_ids yet.
+                            const tempVideoId = `v_${Date.now()}`;
+                            setLocalVideos(prev => [...prev, { id: tempVideoId, file: null, url: data.url }]);
+                            appendLog(`[MEDIA] Successfully cached secure local video container: ${file.name}`);
+                        }
+                    } else {
+                        appendLog(`[ERROR] S3 Gateway rejected the file stream for ${file.name}`);
+                    }
+                } else {
+                    appendLog(`[ERROR] S3 Gateway returned HTTP ${res.status} for ${file.name}`);
+                }
+            } catch (error) {
+                appendLog(`[ERROR] Direct network pipeline failure mounting ${file.name}`);
             }
-        });
+        }
+        
+        setUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
     };
 
     const removeImage = (idx: number) => setLocalImages(prev => prev.filter((_, i) => i !== idx));
@@ -194,10 +226,10 @@ export default function ProductAvatarStudio() {
                         selling_points: sellingPoints
                     }],
                     input_image_list: {
-                        image_url_list: localImages.map(img => img.url.startsWith('blob:') ? "https://storage.googleapis.com/nmg-mocks/demo.jpg" : img.url)
+                        image_url_list: localImages.map(img => img.url)
                     },
                     input_video_list: {
-                        video_id_list: localVideos.map(v => v.id.startsWith('v_local') ? "v12345demo" : v.id)
+                        video_url_list: localVideos.map(v => v.url)
                     }
                 }
             };
@@ -457,16 +489,28 @@ export default function ProductAvatarStudio() {
                                             <div key={idx} className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 relative group overflow-hidden">
                                                 <video src={vid.url} className="w-full h-full object-cover" />
                                                 <div className="absolute inset-0 flex items-center justify-center text-teal-500 font-bold bg-black/30 pointer-events-none drop-shadow-md"><Video size={16}/></div>
-                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity backdrop-blur-[2px]">
-                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-110 transition-transform pointer-events-auto" onClick={() => removeVideo(idx)} />
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                                                    <Button variant="ghost" size="sm" onClick={() => removeVideo(idx)} className="h-6 text-[10px] text-red-400 font-mono hover:text-red-300 hover:bg-red-500/20">
+                                                        [ DELETE ]
+                                                    </Button>
                                                 </div>
                                             </div>
                                         ))}
-                                        {localImages.length + localVideos.length < 30 && (
-                                            <div className="aspect-square bg-[#0a0a0a] border border-dashed border-gray-700 rounded hover:bg-[#111] hover:border-teal-500/50 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50" onClick={() => fileInputRef.current?.click()}>
-                                                <UploadCloud size={20} className="text-gray-500" />
+
+                                        {uploading && (
+                                            <div className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 border-dashed animate-pulse flex flex-col items-center justify-center gap-2">
+                                                <div className="w-4 h-4 rounded-full border-t-2 border-teal-500 animate-spin"></div>
+                                                <span className="text-[9px] font-mono text-gray-500">UPLOADING</span>
                                             </div>
                                         )}
+                                        
+                                        <div 
+                                            className="aspect-square bg-[#111] hover:bg-gray-900 rounded border border-gray-800 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors"
+                                            onClick={() => fileInputRef.current?.click()}
+                                        >
+                                            <UploadCloud size={16} className="text-gray-500 mb-1" />
+                                            <span className="text-[10px] font-mono text-gray-400">Add Assets</span>
+                                        </div>
                                         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,video/*" onChange={handleFileUpload} />
                                     </div>
                                     <p className="text-[10px] text-gray-500 font-mono mt-2 leading-tight">Must provide images or short videos of the physical product so that the Avatar can refer to them during generation.</p>
@@ -477,8 +521,8 @@ export default function ProductAvatarStudio() {
                         <div className="space-y-2">
                             <Button 
                                 onClick={handleGenerate} 
-                                disabled={loading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)} 
-                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all"
+                                disabled={loading || uploading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)} 
+                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all cursor-pointer"
                             >
                                 {loading ? "[ COMPILING PRODUCT... ]" : `[ GENERATE AVATAR PRODUCT ]`}
                             </Button>
