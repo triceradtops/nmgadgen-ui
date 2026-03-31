@@ -663,24 +663,17 @@ export default function ProductAvatarStudio() {
             </div>
 
             {/* Persistent Terminal Layout component from other pages */}
-                <div className="fixed bottom-0 right-0 p-4 w-[400px] z-50 pointer-events-none">
-                    <div className="bg-black/90 backdrop-blur-md border border-gray-800 rounded-lg shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
-                        <div className="bg-[#111] px-3 py-1.5 border-b border-gray-800 flex items-center justify-between cursor-move">
-                            <div className="flex items-center gap-2">
-                                <Terminal size={12} className="text-gray-500" />
-                                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Symphony Link Sequence</span>
+                <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
+                    <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
+                        <Terminal size={16} className="text-teal-500" />
+                        <span className="text-xs font-mono font-bold tracking-wider uppercase">Symphony Terminal</span>
+                    </div>
+                    <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
+                        {terminalLogs.map((log, i) => (
+                            <div key={i} className={`whitespace-pre-wrap ${log.includes("ERROR") || log.includes("LIMIT") || log.includes("FAILED") ? 'text-red-400' : log.includes("SUCCESS") ? 'text-green-400' : 'text-teal-400'}`}>
+                                {log}
                             </div>
-                            <div className="flex gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
-                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
-                            </div>
-                        </div>
-                        <div className="h-[150px] overflow-y-auto p-3 font-mono text-[10px] text-gray-400 flex flex-col gap-1 scrollbar-thin scrollbar-thumb-gray-800">
-                            {terminalLogs.map((log, i) => (
-                                <div key={i} className={`whitespace-pre-wrap ${log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>{log}</div>
-                            ))}
-                        </div>
+                        ))}
                     </div>
                 </div>
 
