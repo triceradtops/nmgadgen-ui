@@ -677,49 +677,4 @@ export default function ProductAvatarStudio() {
         </div>
     );
 }
-<div className="flex gap-1 mt-1 overflow-x-hidden">
-    {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
-        <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
-            {g.tags?.[0]}
-        </span>
-    ))}
-</div>
-                                            </div >
 
-    {/* Select overlay exact copy of symphony/page.tsx overlay style */ }
-{
-    isSelected && (
-        <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
-            <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Avatar Selected</div>
-        </div>
-    )
-}
-                                        </div >
-                                    );
-                                })}
-                            </div >
-                        )}
-                        </>
-                    )}
-                </div >
-            </div >
-
-    {/* Persistent Terminal Layout component from other pages */ }
-    < div className = "w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0" >
-                    <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
-                        <Terminal size={16} className="text-teal-500" />
-                        <span className="text-xs font-mono font-bold tracking-wider uppercase">Symphony Terminal</span>
-                    </div>
-                    <div className="p-4 overflow-y-auto flex-1 font-mono text-xs leading-relaxed space-y-1">
-                        {terminalLogs.map((log, i) => (
-                            <div key={i} className={`whitespace-pre-wrap ${log.includes("ERROR") || log.includes("LIMIT") || log.includes("FAILED") ? 'text-red-400' : log.includes("SUCCESS") ? 'text-green-400' : 'text-teal-400'}`}>
-                                {log}
-                            </div>
-                        ))}
-                    </div>
-                </div >
-
-                </div >
-        </div >
-    );
-}
