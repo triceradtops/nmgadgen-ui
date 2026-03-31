@@ -11,6 +11,11 @@ export default function HistoryPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [prompts, setPrompts] = useState<Record<string, { loading: boolean, data: any, error?: string }>>({});
+    
+    // Pagination & Modal State
+    const [page, setPage] = useState(0);
+    const [hasMore, setHasMore] = useState(false);
+    const [activeAd, setActiveAd] = useState<any | null>(null);
 
     const fetchPrompts = async (resultId: string) => {
         if (!resultId || prompts[resultId]?.data || prompts[resultId]?.loading) return;
@@ -41,7 +46,7 @@ export default function HistoryPage() {
         }
     };
 
-    const fetchHistory = async () => {
+    const fetchHistory = async (targetPage = 0) => {
         if (!accessCode) {
             setError("Please enter your team access code.");
             return;
@@ -51,7 +56,7 @@ export default function HistoryPage() {
         setError(null);
 
         try {
-            const res = await fetch("/api/history?limit=50", {
+            const res = await fetch(`/api/history?limit=100&offset=${targetPage * 100}`, {
                 headers: { "x-access-code": accessCode }
             });
 
@@ -64,7 +69,24 @@ export default function HistoryPage() {
 
             const data = await res.json();
             if (data.data) {
-                setHistory(data.data);
+                // Flatten the nested job -> results
+                const flattened: any[] = [];
+                data.data.forEach((job: any) => {
+                    if (job.results) {
+                        job.results.forEach((ad: any) => {
+                            flattened.push({
+                                ...ad,
+                                job_id: job.job_id,
+                                campaign_goal: job.campaign_goal,
+                                target_audience: job.target_audience,
+                                created_at: job.created_at
+                            });
+                        });
+                    }
+                });
+                setHistory(flattened);
+                setPage(targetPage);
+                setHasMore(data.count === 100);
             }
         } catch (err: any) {
             setError(err.message);
@@ -104,9 +126,9 @@ export default function HistoryPage() {
                             value={accessCode}
                             onChange={(e) => setAccessCode(e.target.value)}
                             className="bg-[#111] border-gray-800 text-white w-64 font-mono text-sm"
-                            onKeyDown={(e) => e.key === 'Enter' && fetchHistory()}
+                            onKeyDown={(e) => e.key === 'Enter' && fetchHistory(0)}
                         />
-                        <Button onClick={fetchHistory} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono uppercase tracking-widest border-0">
+                        <Button onClick={() => fetchHistory(0)} disabled={loading} className="bg-indigo-600 hover:bg-indigo-500 text-white font-mono uppercase tracking-widest border-0">
                             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Load Library"}
                         </Button>
                     </div>
@@ -124,102 +146,143 @@ export default function HistoryPage() {
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 gap-12">
-                    {history.map((job) => (
-                        <div key={job.job_id} className="bg-zinc-900/50 rounded-xl p-8 border border-white/10 shadow-2xl">
-                            <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
-                                <div>
-                                    <h2 className="text-xl font-bold text-white mb-1">
-                                        {job.campaign_goal || "Unknown Campaign"}
-                                    </h2>
-                                    <p className="text-sm text-zinc-400">
-                                        Target: {job.target_audience || "Broad"} | Job ID: <span className="font-mono text-zinc-500">{job.job_id}</span>
-                                    </p>
+                <div className="flex flex-col gap-4">
+                    {history.map((ad, idx) => (
+                        <div key={`${ad.job_id}-${idx}`} className="bg-zinc-900/50 rounded-lg p-4 border border-white/10 shadow hover:bg-zinc-800/50 transition-colors flex items-center justify-between gap-6 cursor-pointer" onClick={() => setActiveAd(ad)}>
+                            {/* Left: Thumbnail */}
+                            <div className="shrink-0 w-24 h-24 bg-black rounded overflow-hidden flex items-center justify-center border border-white/5 relative group">
+                                {ad.media_url?.endsWith('.mp4') ? (
+                                    <video src={ad.media_url} className="w-full h-full object-cover" muted loop preload="metadata" />
+                                ) : ad.media_url?.endsWith('.mp3') ? (
+                                    <div className="w-full text-zinc-500 font-mono text-[10px] text-center">AUDIO</div>
+                                ) : ad.media_url ? (
+                                    <img src={ad.media_url} alt={ad.headline} className="w-full h-full object-cover" loading="lazy" />
+                                ) : (
+                                    <span className="text-[10px] text-zinc-600">N/A</span>
+                                )}
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
                                 </div>
-                                <span className="text-xs text-zinc-500 font-mono">
-                                    {job.created_at ? new Date(job.created_at).toLocaleString() : "Date Unknown"}
-                                </span>
                             </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {job.results?.map((ad: any, idx: number) => (
-                                    <div key={idx} className="bg-black/50 rounded-lg overflow-hidden border border-white/5 flex flex-col">
-                                        <div className="p-3 bg-zinc-800/50 flex justify-between items-center border-b border-white/5">
-                                            <span className="text-xs font-semibold text-zinc-300">{ad.platform}</span>
-                                            <span className="text-xs text-zinc-500 font-mono">{ad.format}</span>
-                                        </div>
-                                        <div className="relative aspect-square w-full bg-zinc-900">
-                                            {ad.media_url ? (
-                                                <img
-                                                    src={ad.media_url}
-                                                    alt={ad.headline}
-                                                    className="object-cover w-full h-full"
-                                                    loading="lazy"
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-zinc-700 text-sm">
-                                                    Image Unavailable
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="p-5 flex flex-col flex-1">
-                                            <h3 className="font-bold text-lg text-white mb-2 leading-tight">
-                                                {ad.headline}
-                                            </h3>
-                                            <p className="text-sm text-zinc-400 leading-relaxed font-serif">
-                                                {ad.body_copy}
-                                            </p>
-
-                                            <details
-                                                className="mt-4 border-t border-white/10 pt-4"
-                                                onToggle={(e) => {
-                                                    if ((e.target as HTMLDetailsElement).open && ad.result_id) {
-                                                        fetchPrompts(ad.result_id);
-                                                    }
-                                                }}
-                                            >
-                                                <summary className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer font-mono font-semibold uppercase tracking-wider mb-2 select-none transition-colors outline-none inline-flex items-center gap-2">
-                                                    [ View Prompt Audit Log ]
-                                                </summary>
-                                                <div className="bg-[#0a0a0a] border border-gray-800 rounded p-4 mt-3">
-                                                    {prompts[ad.result_id]?.loading ? (
-                                                        <div className="flex items-center gap-2 text-zinc-500 text-xs font-mono">
-                                                            <Loader2 className="h-3 w-3 animate-spin" /> Fetching secure audit logs...
-                                                        </div>
-                                                    ) : prompts[ad.result_id]?.error ? (
-                                                        <div className="text-red-400 text-xs font-mono">Error: {prompts[ad.result_id].error}</div>
-                                                    ) : prompts[ad.result_id]?.data ? (
-                                                        <div className="space-y-4">
-                                                            <div>
-                                                                <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-1.5">
-                                                                    Copywriter Intelligence (Claude)
-                                                                </h4>
-                                                                <pre className="text-[10px] text-gray-300 font-mono bg-[#111] p-3 rounded overflow-x-auto whitespace-pre-wrap border border-gray-800 max-h-48 overflow-y-auto scrollbar-thin">
-                                                                    {prompts[ad.result_id].data.claude_prompt || "No prompt recorded"}
-                                                                </pre>
-                                                            </div>
-                                                            <div>
-                                                                <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-1.5">
-                                                                    Image Generation Synthesis (Gemini)
-                                                                </h4>
-                                                                <pre className="text-[10px] text-gray-300 font-mono bg-[#111] p-3 rounded overflow-x-auto whitespace-pre-wrap border border-gray-800 max-h-48 overflow-y-auto scrollbar-thin">
-                                                                    {prompts[ad.result_id].data.gemini_prompt || "No prompt recorded"}
-                                                                </pre>
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="text-zinc-500 text-xs font-mono">Initialization pending...</div>
-                                                    )}
-                                                </div>
-                                            </details>
-                                        </div>
-                                    </div>
-                                ))}
+                            
+                            {/* Middle: Content */}
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-2 py-0.5 rounded uppercase tracking-wider shrink-0">{ad.platform || "GENERAL"}</span>
+                                    <span className="text-xs text-zinc-500 font-mono shrink-0">{ad.created_at ? new Date(ad.created_at).toLocaleDateString() : 'N/A'}</span>
+                                    <span className="text-xs text-zinc-600 font-mono truncate hidden md:inline-block max-w-[200px]">{ad.campaign_goal}</span>
+                                </div>
+                                <h3 className="font-bold text-white text-base truncate mb-1">{ad.headline || "Untitled Ad"}</h3>
+                                <p className="text-sm text-zinc-400 truncate font-serif">{ad.body_copy}</p>
+                            </div>
+                            
+                            {/* Right: Actions */}
+                            <div className="shrink-0 text-right hidden sm:block">
+                                <Button className="bg-white/10 hover:bg-white/20 text-white text-xs px-4 border-0" onClick={(e) => { e.stopPropagation(); setActiveAd(ad); }}>
+                                    View Details
+                                </Button>
                             </div>
                         </div>
                     ))}
                 </div>
+
+                {!loading && history.length > 0 && (
+                    <div className="mt-12 flex justify-center items-center gap-6">
+                        <Button 
+                            disabled={page === 0 || loading} 
+                            onClick={() => fetchHistory(page - 1)}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white border-0 font-mono uppercase tracking-widest text-xs px-6"
+                        >
+                            &larr; Prev
+                        </Button>
+                        <span className="text-zinc-500 font-mono text-sm">Page {page + 1}</span>
+                        <Button 
+                            disabled={!hasMore || loading} 
+                            onClick={() => fetchHistory(page + 1)}
+                            className="bg-zinc-800 hover:bg-zinc-700 text-white border-0 font-mono uppercase tracking-widest text-xs px-6"
+                        >
+                            Next &rarr;
+                        </Button>
+                    </div>
+                )}
             </div>
+
+            {/* Modal */}
+            {activeAd && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setActiveAd(null)}>
+                    <div className="bg-[#111] max-w-4xl w-full rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                        
+                        {/* Media Pane */}
+                        <div className="w-full md:w-1/2 bg-black shrink-0 relative flex flex-col justify-center border-r border-white/10">
+                            {activeAd.media_url?.endsWith('.mp4') ? (
+                                <video src={activeAd.media_url} controls className="w-full max-h-[90vh] object-contain" autoPlay muted={false} />
+                            ) : activeAd.media_url?.endsWith('.mp3') ? (
+                                <div className="p-8 text-center flex flex-col items-center">
+                                    <div className="text-zinc-500 uppercase tracking-widest font-mono text-xs mb-4">Audio Voiceover</div>
+                                    <audio src={activeAd.media_url} controls className="w-full" autoPlay />
+                                </div>
+                            ) : activeAd.media_url ? (
+                                <img src={activeAd.media_url} className="w-full h-[90vh] object-contain" alt="" />
+                            ) : (
+                                <div className="text-zinc-600 text-sm w-full text-center h-[300px] flex items-center justify-center">No Media</div>
+                            )}
+                        </div>
+                        
+                        {/* Details Pane */}
+                        <div className="w-full md:w-1/2 p-8 overflow-y-auto">
+                            <div className="flex justify-between items-start mb-6 border-b border-white/10 pb-4">
+                                <div className="pr-4">
+                                    <span className="text-xs font-mono text-indigo-400 bg-indigo-900/20 px-2 py-0.5 rounded uppercase tracking-wider block w-max mb-3">
+                                        {activeAd.platform || "GENERAL"} • {activeAd.format || "STATIC"}
+                                    </span>
+                                    <h2 className="text-2xl font-bold text-white leading-tight">{activeAd.headline}</h2>
+                                    <p className="text-zinc-500 text-xs font-mono mt-3">Job ID: {activeAd.job_id}</p>
+                                </div>
+                                <button className="text-zinc-500 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors" onClick={() => setActiveAd(null)}>
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                </button>
+                            </div>
+                            
+                            <h3 className="text-xs font-bold font-mono tracking-widest uppercase text-white mb-2">Body Copy</h3>
+                            <p className="text-sm text-zinc-300 font-serif leading-relaxed mb-8 bg-black/30 p-4 rounded border border-white/5 whitespace-pre-wrap">
+                                {activeAd.body_copy || "No copy provided."}
+                            </p>
+                            
+                            <details className="mt-4 border-t border-white/10 pt-4" onToggle={(e) => {
+                                if ((e.target as HTMLDetailsElement).open && activeAd.result_id) fetchPrompts(activeAd.result_id);
+                            }}>
+                                <summary className="text-xs text-indigo-400 hover:text-indigo-300 cursor-pointer font-mono font-semibold uppercase tracking-wider mb-2 select-none inline-flex items-center">
+                                    [ View Prompt Audit Log ]
+                                </summary>
+                                <div className="bg-[#0a0a0a] border border-gray-800 rounded p-4 mt-3">
+                                    {prompts[activeAd.result_id]?.loading ? (
+                                        <div className="flex items-center gap-2 text-zinc-500 text-xs font-mono">
+                                            <Loader2 className="h-3 w-3 animate-spin" /> Fetching logs...
+                                        </div>
+                                    ) : prompts[activeAd.result_id]?.data ? (
+                                        <div className="space-y-4">
+                                            <div>
+                                                <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-1.5">Copywriter Intel (Claude)</h4>
+                                                <pre className="text-[10px] text-gray-300 font-mono bg-[#111] p-3 rounded overflow-x-auto whitespace-pre-wrap border border-gray-800 max-h-48 scrollbar-thin">
+                                                    {prompts[activeAd.result_id].data.claude_prompt || "No prompt recorded"}
+                                                </pre>
+                                            </div>
+                                            <div>
+                                                <h4 className="text-[10px] text-gray-500 font-mono uppercase tracking-widest mb-1.5">Asset Synthesis (Gemini)</h4>
+                                                <pre className="text-[10px] text-gray-300 font-mono bg-[#111] p-3 rounded overflow-x-auto whitespace-pre-wrap border border-gray-800 max-h-48 scrollbar-thin">
+                                                    {prompts[activeAd.result_id].data.gemini_prompt || "No prompt recorded"}
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-zinc-500 text-xs font-mono">{prompts[activeAd.result_id]?.error || "Initialization pending..."}</div>
+                                    )}
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -28,7 +28,7 @@ const RenderTimer = ({ startedAt }: { startedAt: number }) => {
         const int = setInterval(() => setElapsed(Math.floor((Date.now() - startedAt) / 1000)), 1000);
         return () => clearInterval(int);
     }, [startedAt]);
-    
+
     const mins = Math.floor(elapsed / 60);
     const secs = elapsed % 60;
     return <span className="text-teal-500 font-mono text-[10px] tabular-nums mt-2 border border-teal-900/50 bg-teal-900/20 px-2 py-0.5 rounded">T+{mins}:{secs.toString().padStart(2, '0')}</span>;
@@ -38,18 +38,18 @@ export default function ProductAvatarStudio() {
     const [loading, setLoading] = useState(false);
     const [terminalLogs, setTerminalLogs] = useState<string[]>(["[TIKTOK_SYMPHONY] Neural Engine Initialized..."]);
     const [isConfigOpen, setIsConfigOpen] = useState(true);
-    
+
     // Form States
     const [productName, setProductName] = useState("Ecotarnin");
     const [description, setDescription] = useState("High concentration vitamin C serum that brightens and evens skin tone while providing intense hydration and anti-aging benefits.");
     const [sellingPoints, setSellingPoints] = useState(["Dermatologist tested", "Vegan & Cruelty-free", "Visible results in 7 days"]);
     const [duration, setDuration] = useState("RECOMMENDED");
     const [targetLanguage, setTargetLanguage] = useState("en");
-    
+
     // Media Upload Arrays
-    const [localImages, setLocalImages] = useState<{url: string, file: File | null}[]>([]);
-    const [localVideos, setLocalVideos] = useState<{id: string, file: File | null, url: string}[]>([]);
-    
+    const [localImages, setLocalImages] = useState<{ url: string, file: File | null }[]>([]);
+    const [localVideos, setLocalVideos] = useState<{ id: string, file: File | null, url: string }[]>([]);
+
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Avatar state
@@ -63,7 +63,7 @@ export default function ProductAvatarStudio() {
     // Filter Sets
     const [searchQuery, setSearchQuery] = useState("");
     const [activeIdentityTab, setActiveIdentityTab] = useState<'real' | 'aigc'>('real');
-    
+
     const [filterGesture, setFilterGesture] = useState("All");
     const [filterAge, setFilterAge] = useState("All");
     const [filterGender, setFilterGender] = useState("All");
@@ -97,59 +97,27 @@ export default function ProductAvatarStudio() {
                     setSelectedVoiceId(data.data[0].voice_id);
                     appendLog(`Successfully loaded ${data.data.length} synthesis voices.`);
                 }
-            } catch (err) {}
+            } catch (err) { }
         };
         fetchAvatars();
         fetchVoices();
     }, []);
 
-    const [uploading, setUploading] = useState(false);
-
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!e.target.files?.length) return;
         const newFiles = Array.from(e.target.files);
-        
-        setUploading(true);
-        appendLog(`[MEDIA] Routing ${newFiles.length} raw assets to internal S3 gateway...`);
-        
-        for (const file of newFiles) {
-            const formData = new FormData();
-            formData.append("file", file);
 
-            try {
-                const res = await fetch("/api/upload", {
-                    method: "POST",
-                    headers: {
-                        "x-access-code": localStorage.getItem("site_access_code") || process.env.NEXT_PUBLIC_ACCESS_CODE || "nmg_super_secret_2026",
-                    },
-                    body: formData,
-                });
-
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.url) {
-                        if (file.type.startsWith('image/')) {
-                            setLocalImages(prev => [...prev, { url: data.url, file: null }]);
-                            appendLog(`[MEDIA] Fully ingested active S3 image asset: ${file.name}`);
-                        } else if (file.type.startsWith('video/')) {
-                            // TikTok accepts native video URLs here if we lack TikTok-hosted video_ids yet.
-                            const tempVideoId = `v_${Date.now()}`;
-                            setLocalVideos(prev => [...prev, { id: tempVideoId, file: null, url: data.url }]);
-                            appendLog(`[MEDIA] Successfully cached secure local video container: ${file.name}`);
-                        }
-                    } else {
-                        appendLog(`[ERROR] S3 Gateway rejected the file stream for ${file.name}`);
-                    }
-                } else {
-                    appendLog(`[ERROR] S3 Gateway returned HTTP ${res.status} for ${file.name}`);
-                }
-            } catch (error) {
-                appendLog(`[ERROR] Direct network pipeline failure mounting ${file.name}`);
+        newFiles.forEach(file => {
+            const url = URL.createObjectURL(file);
+            if (file.type.startsWith('image/')) {
+                setLocalImages(prev => [...prev, { url, file }]);
+                appendLog(`[MEDIA] Ingested image asset: ${file.name}`);
+            } else if (file.type.startsWith('video/')) {
+                const mockVideoId = `v_local_${Math.random().toString(36).substring(7)}`;
+                setLocalVideos(prev => [...prev, { id: mockVideoId, file, url }]);
+                appendLog(`[MEDIA] Cached local video asset: ${file.name} -> ${mockVideoId}`);
             }
-        }
-        
-        setUploading(false);
-        if (fileInputRef.current) fileInputRef.current.value = "";
+        });
     };
 
     const removeImage = (idx: number) => setLocalImages(prev => prev.filter((_, i) => i !== idx));
@@ -168,14 +136,14 @@ export default function ProductAvatarStudio() {
                 if (res.status === 200) {
                     const data = await res.json();
                     const tasks = data.list || [];
-                    
+
                     if (tasks.length > 0) {
                         const t = tasks[0];
-                        
+
                         if (t.status === "SUCCESS") {
                             appendLog(`[Task ${taskId.slice(-4)}] Render Complete. Product Avatar Video Online.`);
-                            setBatchJobs(prev => prev.map(job => job.taskId === taskId ? { 
-                                ...job, 
+                            setBatchJobs(prev => prev.map(job => job.taskId === taskId ? {
+                                ...job,
                                 status: 'SUCCESS',
                                 videoUrl: t.preview_url || t.video_url || t.avatar_video_id,
                                 subtitleUrl: t.srt_file_url || t.subtitle_url
@@ -185,8 +153,8 @@ export default function ProductAvatarStudio() {
                         } else if (t.status === "FAILED") {
                             const errorObj = t.fail_reason || t.error_msg || JSON.stringify(t);
                             appendLog(`[Task ${taskId.slice(-4)}] CRITICAL ERROR: ${errorObj}`);
-                            setBatchJobs(prev => prev.map(job => job.taskId === taskId ? { 
-                                ...job, 
+                            setBatchJobs(prev => prev.map(job => job.taskId === taskId ? {
+                                ...job,
                                 status: 'FAILED',
                                 errorDetails: String(errorObj)
                             } : job));
@@ -195,7 +163,7 @@ export default function ProductAvatarStudio() {
                         }
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         }, 5000);
     };
 
@@ -207,7 +175,7 @@ export default function ProductAvatarStudio() {
 
         setLoading(true);
         appendLog(`Initiating Product Avatar task compilation...`);
-        
+
         try {
             const payload = {
                 aigc_video_type: "AVATAR_PRODUCT",
@@ -226,22 +194,22 @@ export default function ProductAvatarStudio() {
                         selling_points: sellingPoints
                     }],
                     input_image_list: {
-                        image_url_list: localImages.map(img => img.url)
+                        image_url_list: localImages.map(img => img.url.startsWith('blob:') ? "https://storage.googleapis.com/nmg-mocks/demo.jpg" : img.url)
                     },
                     input_video_list: {
-                        video_url_list: localVideos.map(v => v.url)
+                        video_id_list: localVideos.map(v => v.id.startsWith('v_local') ? "v12345demo" : v.id)
                     }
                 }
             };
 
             appendLog(`Dispatching payload to backend: ${JSON.stringify(payload)}`);
-            
+
             const res = await fetch("https://web-production-1f2e2.up.railway.app/api/tiktok/remix/generate", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload),
             });
-            
+
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === "accepted" && data.task_data?.task_ids) {
@@ -284,11 +252,11 @@ export default function ProductAvatarStudio() {
 
     const isMatch = (a: any) => {
         let match = true;
-        
+
         // Identity Tab matching
         const aIden = a.tag_groups?.find((g: any) => g.tag_type === 'identity')?.tags?.[0] || 'unknown';
         if (aIden !== activeIdentityTab) match = false;
-        
+
         // Search
         if (searchQuery && !a.avatar_name?.toLowerCase().includes(searchQuery.toLowerCase()) && !a.avatar_id?.toLowerCase().includes(searchQuery.toLowerCase())) {
             match = false;
@@ -305,12 +273,12 @@ export default function ProductAvatarStudio() {
 
         const avatarScenes = a.tag_groups?.find((g: any) => g.tag_type?.toLowerCase() === 'scene' || g.tag_type?.toLowerCase() === 'background')?.tags || [];
         if (filterScene !== "All" && !avatarScenes.includes(filterScene)) match = false;
-        
+
         return match;
     };
 
     const filteredAvatars = avatars.filter(isMatch);
-    
+
     // Group them for display like in original avatars page
     const groupedMap = new Map<string, any[]>();
     filteredAvatars.forEach(a => {
@@ -318,7 +286,7 @@ export default function ProductAvatarStudio() {
         if (!groupedMap.has(baseName)) groupedMap.set(baseName, []);
         groupedMap.get(baseName)!.push(a);
     });
-    
+
     const filteredAvatarGroups = Array.from(groupedMap.entries()).map(([baseName, looks]) => {
         return {
             groupId: looks[0]?.avatar_id || baseName,
@@ -353,10 +321,10 @@ export default function ProductAvatarStudio() {
             </div>
 
             <div className="flex-1 flex overflow-hidden">
-                
+
                 {/* Left Mini-Rail Navigation */}
                 <div className="w-16 bg-[#111] border-r border-gray-800 flex flex-col items-center py-4 gap-4 z-20 shrink-0">
-                    
+
                     <Link href="/symphony" className="p-3 rounded-xl hover:bg-gray-800 text-gray-400 hover:text-white border border-transparent group relative transition-all">
                         <User size={20} />
                         <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-black border border-gray-800 text-gray-300 text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-xl">
@@ -392,29 +360,29 @@ export default function ProductAvatarStudio() {
                 {/* Configuration Sidebar EXACTLY like symphony/page.tsx */}
                 <div className={`bg-[#111] border-r border-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}>
                     <div className="space-y-6 w-full min-w-[350px]">
-                        <Card className="bg-black border-teal-900/30 shadow-sm">
-                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30">
+                        <Card className="bg-black border-teal-900/30 shadow-sm border">
+                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30 py-4 flex justify-between flex-row items-center">
                                 <CardTitle className="text-lg font-mono uppercase tracking-wider">Product Avatar Setting</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
-                                
+
                                 <div className="space-y-2">
                                     <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Product Details</Label>
-                                    <Input 
-                                        value={productName} 
-                                        onChange={e => setProductName(e.target.value)} 
+                                    <Input
+                                        value={productName}
+                                        onChange={e => setProductName(e.target.value)}
                                         className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 placeholder-gray-600 outline-none"
                                         placeholder="Product Name"
                                     />
-                                    <Textarea 
-                                        value={description} 
-                                        onChange={e => setDescription(e.target.value)} 
+                                    <Textarea
+                                        value={description}
+                                        onChange={e => setDescription(e.target.value)}
                                         rows={4}
-                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 outline-none resize-none overflow-hidden placeholder-gray-600"
+                                        className="bg-[#0a0a0a] border-gray-800 text-white font-mono text-xs focus:ring-teal-500 outline-none resize-none placeholder-gray-600"
                                         placeholder="Detailed description..."
                                     />
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                     <Label className="font-bold text-gray-400 font-mono text-xs uppercase flex justify-between">
                                         <span>Value Propositions (Max 5)</span>
@@ -432,8 +400,8 @@ export default function ProductAvatarStudio() {
                                     </div>
                                     {sellingPoints.length < 5 && (
                                         <div className="flex gap-2 relative">
-                                            <Input 
-                                                placeholder="Add selling point and press Enter..." 
+                                            <Input
+                                                placeholder="Add selling point and press Enter..."
                                                 className="bg-[#111] border-dashed border-gray-700 text-white font-mono text-xs pr-8 focus:ring-teal-500 placeholder-gray-600 outline-none h-9"
                                                 onKeyDown={e => {
                                                     if (e.key === 'Enter') {
@@ -450,15 +418,15 @@ export default function ProductAvatarStudio() {
                                 <div className="space-y-2 pt-4 border-t border-teal-900/10">
                                     <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Audio Settings</Label>
                                     <div className="flex gap-2">
-                                        <select 
-                                            value={selectedVoiceId || ''} 
+                                        <select
+                                            value={selectedVoiceId || ''}
                                             onChange={e => setSelectedVoiceId(e.target.value)}
                                             className="w-full h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-300 text-[10px] font-mono outline-none focus:ring-1 focus:ring-teal-500"
                                         >
                                             {voices.map(v => <option key={v.voice_id} value={v.voice_id}>{v.voice_name || v.voice_id}</option>)}
                                         </select>
-                                        <select 
-                                            value={targetLanguage} 
+                                        <select
+                                            value={targetLanguage}
                                             onChange={e => setTargetLanguage(e.target.value)}
                                             className="w-20 shrink-0 h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-800 text-gray-300 text-[10px] font-mono outline-none focus:ring-1 focus:ring-teal-500 uppercase"
                                         >
@@ -469,13 +437,13 @@ export default function ProductAvatarStudio() {
                                         </select>
                                     </div>
                                 </div>
-                                
+
                                 <div className="space-y-2 pt-4 border-t border-teal-900/10">
                                     <div className="flex justify-between items-center">
                                         <Label className="font-bold text-gray-400 font-mono text-xs uppercase">Visual Assets</Label>
                                         <span className="text-[10px] text-gray-500 font-mono bg-transparent">{localImages.length} Img / {localVideos.length} Vid</span>
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-4 gap-2">
                                         {localImages.map((img, idx) => (
                                             <div key={idx} className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 relative group overflow-hidden">
@@ -488,29 +456,17 @@ export default function ProductAvatarStudio() {
                                         {localVideos.map((vid, idx) => (
                                             <div key={idx} className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 relative group overflow-hidden">
                                                 <video src={vid.url} className="w-full h-full object-cover" />
-                                                <div className="absolute inset-0 flex items-center justify-center text-teal-500 font-bold bg-black/30 pointer-events-none drop-shadow-md"><Video size={16}/></div>
-                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
-                                                    <Button variant="ghost" size="sm" onClick={() => removeVideo(idx)} className="h-6 text-[10px] text-red-400 font-mono hover:text-red-300 hover:bg-red-500/20">
-                                                        [ DELETE ]
-                                                    </Button>
+                                                <div className="absolute inset-0 flex items-center justify-center text-teal-500 font-bold bg-black/30 pointer-events-none drop-shadow-md"><Video size={16} /></div>
+                                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex justify-center items-center transition-opacity backdrop-blur-[2px]">
+                                                    <X size={16} className="text-red-400 cursor-pointer hover:scale-110 transition-transform pointer-events-auto" onClick={() => removeVideo(idx)} />
                                                 </div>
                                             </div>
                                         ))}
-
-                                        {uploading && (
-                                            <div className="aspect-square bg-[#0a0a0a] rounded border border-gray-800 border-dashed animate-pulse flex flex-col items-center justify-center gap-2">
-                                                <div className="w-4 h-4 rounded-full border-t-2 border-teal-500 animate-spin"></div>
-                                                <span className="text-[9px] font-mono text-gray-500">UPLOADING</span>
+                                        {localImages.length + localVideos.length < 30 && (
+                                            <div className="aspect-square bg-[#0a0a0a] border border-dashed border-gray-700 rounded hover:bg-[#111] hover:border-teal-500/50 transition-colors flex items-center justify-center cursor-pointer disabled:opacity-50" onClick={() => fileInputRef.current?.click()}>
+                                                <UploadCloud size={20} className="text-gray-500" />
                                             </div>
                                         )}
-                                        
-                                        <div 
-                                            className="aspect-square bg-[#111] hover:bg-gray-900 rounded border border-gray-800 border-dashed flex flex-col items-center justify-center cursor-pointer transition-colors"
-                                            onClick={() => fileInputRef.current?.click()}
-                                        >
-                                            <UploadCloud size={16} className="text-gray-500 mb-1" />
-                                            <span className="text-[10px] font-mono text-gray-400">Add Assets</span>
-                                        </div>
                                         <input type="file" ref={fileInputRef} className="hidden" multiple accept="image/*,video/*" onChange={handleFileUpload} />
                                     </div>
                                     <p className="text-[10px] text-gray-500 font-mono mt-2 leading-tight">Must provide images or short videos of the physical product so that the Avatar can refer to them during generation.</p>
@@ -519,10 +475,10 @@ export default function ProductAvatarStudio() {
                         </Card>
 
                         <div className="space-y-2">
-                            <Button 
-                                onClick={handleGenerate} 
-                                disabled={loading || uploading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)} 
-                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all cursor-pointer"
+                            <Button
+                                onClick={handleGenerate}
+                                disabled={loading || selectedAvatarId === null || (localImages.length === 0 && localVideos.length === 0)}
+                                className="w-full h-12 text-lg font-bold bg-teal-600 hover:bg-teal-500 text-white font-mono uppercase tracking-widest border-0 shadow-lg shadow-teal-500/20 disabled:opacity-50 transition-all"
                             >
                                 {loading ? "[ COMPILING PRODUCT... ]" : `[ GENERATE AVATAR PRODUCT ]`}
                             </Button>
@@ -533,16 +489,9 @@ export default function ProductAvatarStudio() {
                 {/* Main Dynamic Viewport EXACTLY like symphony/page.tsx */}
                 <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
                     <div className="max-w-[1800px] mx-auto space-y-6">
-                        {loading && (
-                            <div className="flex flex-col items-center justify-center p-24 text-center space-y-4 shadow-xl">
-                                <Video className="w-12 h-12 text-teal-500 animate-pulse" />
-                                <p className="text-sm text-teal-400 font-mono uppercase tracking-widest text-shadow">TikTok Server Farm Active</p>
-                                <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Dispatching Concurrent Node Cluster...</p>
-                            </div>
-                        )}
 
                         {/* Active Jobs Rendering Box */}
-                        {!loading && batchJobs.length > 0 && (
+                        {batchJobs.length > 0 && (
                             <div className="space-y-6">
                                 <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
                                     <h2 className="text-teal-400 font-mono uppercase tracking-widest text-sm font-bold flex items-center gap-2">
@@ -552,7 +501,7 @@ export default function ProductAvatarStudio() {
                                         [ RESET_WORKSPACE ]
                                     </Button>
                                 </div>
-                            
+
                                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                                     {batchJobs.map((job) => (
                                         <div key={job.taskId} className={`bg-[#0a0a0a] overflow-hidden rounded-xl border flex flex-col group relative transition-colors ${job.status === 'SUCCESS' ? 'border-teal-500/30' : job.status === 'FAILED' ? 'border-red-900/50' : 'border-gray-800'}`}>
@@ -566,7 +515,7 @@ export default function ProductAvatarStudio() {
                                                     {job.status === 'FAILED' && <><div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div><span className="text-red-500">Halt</span></>}
                                                 </div>
                                             </div>
-                                            
+
                                             <div className="relative aspect-[9/16] bg-black flex items-center justify-center overflow-hidden">
                                                 {job.status === 'SUCCESS' && job.videoUrl ? (
                                                     <video src={job.videoUrl} controls muted loop crossOrigin="anonymous" className="w-full h-full object-cover rounded-xl shadow-[0_0_20px_rgba(20,184,166,0.15)] ring-1 ring-teal-500/30" />
@@ -594,62 +543,60 @@ export default function ProductAvatarStudio() {
                             </div>
                         )}
 
-                        {!loading && batchJobs.length === 0 && (
-                            <>
-                                <div className="flex flex-col gap-4 mb-4">
-                                    <div className="flex justify-between items-center">
-                                        <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Target Avatar</h2>
-                                        <div className="flex items-center gap-4">
-                                            <span className={`text-xs font-mono font-bold text-teal-500`}>{selectedAvatarId ? '1' : '0'}/1 Selected</span>
-                                            <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className="flex gap-4 border-b border-gray-800 pb-2">
-                                        <button 
-                                            onClick={() => setActiveIdentityTab('real')}
-                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                        >
-                                            Real-human
-                                            {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
-                                        </button>
-                                        <button 
-                                            onClick={() => setActiveIdentityTab('aigc')}
-                                            className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                                        >
-                                            AI-generated
-                                            {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
-                                        </button>
-                                    </div>
+                        <div className="flex flex-col gap-4 mb-4">
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-gray-200 font-mono uppercase tracking-widest text-sm">Target Avatar</h2>
+                                <div className="flex items-center gap-4">
+                                    <span className={`text-xs font-mono font-bold text-teal-500`}>{selectedAvatarId ? '1' : '0'}/1 Selected</span>
+                                    <span className="text-xs text-gray-500 font-mono px-2 border-l border-gray-800">{filteredAvatarGroups.length} Structural Groups</span>
                                 </div>
+                            </div>
 
-                                {avatars.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
-                                        <Input 
-                                            placeholder="🔍 Search ID or Name..." 
-                                            value={searchQuery}
-                                            onChange={e => setSearchQuery(e.target.value)}
-                                            className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
-                                        />
-                                        
-                                        <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
-                                            {gestures.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gesture' : opt.replace(/_/g, ' ')}</option>)}
-                                        </select>
-                                
+                            <div className="flex gap-4 border-b border-gray-800 pb-2">
+                                <button
+                                    onClick={() => setActiveIdentityTab('real')}
+                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 ${activeIdentityTab === 'real' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    Real-human
+                                    {activeIdentityTab === 'real' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                </button>
+                                <button
+                                    onClick={() => setActiveIdentityTab('aigc')}
+                                    className={`font-sans font-semibold text-sm transition-colors relative pb-2 flex items-center gap-2 ${activeIdentityTab === 'aigc' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                                >
+                                    AI-generated
+                                    {activeIdentityTab === 'aigc' && <div className="absolute bottom-[-2px] inset-x-0 h-[2px] bg-teal-500" />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {avatars.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-6 p-3 bg-[#111] rounded-lg border border-gray-800">
+                                <Input
+                                    placeholder="🔍 Search ID or Name..."
+                                    value={searchQuery}
+                                    onChange={e => setSearchQuery(e.target.value)}
+                                    className="h-8 w-48 bg-[#0a0a0a] border-gray-700 text-white text-xs font-mono placeholder:text-gray-600 focus-visible:ring-1 focus-visible:ring-teal-500"
+                                />
+
+                                <select value={filterGesture} onChange={e => setFilterGesture(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
+                                    {gestures.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gesture' : opt.replace(/_/g, ' ')}</option>)}
+                                </select>
+
                                 <select value={filterAge} onChange={e => setFilterAge(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
                                     {ages.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Age' : opt.replace(/_/g, ' ')}</option>)}
                                 </select>
-                                
+
                                 <select value={filterGender} onChange={e => setFilterGender(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
                                     {genders.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Gender' : opt.replace(/_/g, ' ')}</option>)}
                                 </select>
-                                
+
                                 <select value={filterScene} onChange={e => setFilterScene(e.target.value)} className="h-8 px-2 rounded-md bg-[#0a0a0a] border border-gray-700 text-gray-400 text-xs font-mono outline-none focus:ring-1 focus:ring-teal-500 capitalize">
                                     {scenes.map(opt => <option key={opt} value={opt}>{opt === 'All' ? 'Background' : opt.replace(/_/g, ' ')}</option>)}
                                 </select>
                             </div>
                         )}
-                            
+
                         {avatars.length === 0 ? (
                             <div className="text-center py-20 text-gray-600 font-mono text-sm animate-pulse">
                                 &gt; Loading global avatar database...
@@ -664,32 +611,32 @@ export default function ProductAvatarStudio() {
                                     // Pick the primary avatar from the group
                                     const rep = group.representativeAvatar;
                                     const isSelected = selectedAvatarId === rep.avatar_id;
-                                    
+
                                     return (
-                                        <div 
+                                        <div
                                             key={rep.avatar_id}
                                             onClick={() => setSelectedAvatarId(rep.avatar_id)}
                                             className={`group relative rounded-xl overflow-hidden cursor-pointer transition-all border-2 ${isSelected ? 'border-teal-500 shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'border-transparent hover:border-gray-600'}`}
                                         >
-                                            <img 
-                                                src={rep.avatar_thumbnail} 
+                                            <img
+                                                src={rep.avatar_thumbnail}
                                                 alt={rep.avatar_name}
                                                 className="w-full h-auto object-cover aspect-[9/16]"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                            
+
                                             <div className="absolute bottom-0 left-0 right-0 p-3">
                                                 <p className="text-white font-mono text-xs font-bold truncate">{rep.avatar_name}</p>
-                                                
+
                                                 <div className="flex gap-1 mt-1 overflow-x-hidden">
-                                                {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
-                                                    <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
-                                                        {g.tags?.[0]}
-                                                    </span>
-                                                ))}
+                                                    {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
+                                                        <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
+                                                            {g.tags?.[0]}
+                                                        </span>
+                                                    ))}
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Select overlay exact copy of symphony/page.tsx overlay style */}
                                             {isSelected && (
                                                 <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
@@ -701,13 +648,64 @@ export default function ProductAvatarStudio() {
                                 })}
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* Persistent Terminal Layout component from other pages */}
+                <div className="fixed bottom-0 right-0 p-4 w-[400px] z-50 pointer-events-none">
+                    <div className="bg-black/90 backdrop-blur-md border border-gray-800 rounded-lg shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
+                        <div className="bg-[#111] px-3 py-1.5 border-b border-gray-800 flex items-center justify-between cursor-move">
+                            <div className="flex items-center gap-2">
+                                <Terminal size={12} className="text-gray-500" />
+                                <span className="text-[10px] font-mono text-gray-500 uppercase tracking-widest">Symphony Link Sequence</span>
+                            </div>
+                            <div className="flex gap-1.5">
+                                <div className="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50"></div>
+                                <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/20 border border-yellow-500/50"></div>
+                                <div className="w-2.5 h-2.5 rounded-full bg-green-500/20 border border-green-500/50"></div>
+                            </div>
+                        </div>
+                        <div className="h-[150px] overflow-y-auto p-3 font-mono text-[10px] text-gray-400 flex flex-col gap-1 scrollbar-thin scrollbar-thumb-gray-800">
+                            {terminalLogs.map((log, i) => (
+                                <div key={i} className={`whitespace-pre-wrap ${log.includes('ERROR') ? 'text-red-400' : log.includes('SUCCESS') ? 'text-green-400' : ''}`}>{log}</div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    );
+}
+<div className="flex gap-1 mt-1 overflow-x-hidden">
+    {rep.tag_groups?.filter((g: any) => g.tag_type !== 'identity').slice(0, 3).map((g: any, idx: number) => (
+        <span key={idx} className="bg-black/80 text-gray-400 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase whitespace-nowrap border border-gray-800">
+            {g.tags?.[0]}
+        </span>
+    ))}
+</div>
+                                            </div >
+
+    {/* Select overlay exact copy of symphony/page.tsx overlay style */ }
+{
+    isSelected && (
+        <div className="absolute inset-0 bg-teal-500/10 flex items-center justify-center pointer-events-none">
+            <div className="bg-teal-500 text-black font-mono font-bold text-[10px] uppercase px-2 py-1 rounded-full shadow-lg">✓ Avatar Selected</div>
+        </div>
+    )
+}
+                                        </div >
+                                    );
+                                })}
+                            </div >
+                        )}
                         </>
                     )}
-                </div>
-            </div>
+                </div >
+            </div >
 
-            {/* Persistent Terminal Layout component from other pages */}
-                <div className="w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0">
+    {/* Persistent Terminal Layout component from other pages */ }
+    < div className = "w-full md:w-[300px] xl:w-[350px] bg-[#0A0A0A] border-l border-gray-800 flex flex-col shrink-0" >
                     <div className="bg-[#111] px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0 text-gray-400">
                         <Terminal size={16} className="text-teal-500" />
                         <span className="text-xs font-mono font-bold tracking-wider uppercase">Symphony Terminal</span>
@@ -719,9 +717,9 @@ export default function ProductAvatarStudio() {
                             </div>
                         ))}
                     </div>
-                </div>
+                </div >
 
-                </div>
-        </div>
+                </div >
+        </div >
     );
 }
