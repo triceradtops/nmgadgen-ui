@@ -360,8 +360,8 @@ export default function ProductAvatarStudio() {
                 {/* Configuration Sidebar EXACTLY like symphony/page.tsx */}
                 <div className={`bg-[#111] border-r border-gray-800 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-800 transition-all duration-300 ease-in-out shrink-0 ${isConfigOpen ? 'w-full md:w-[400px] xl:w-[450px] p-6' : 'w-0 p-0 overflow-hidden border-r-0'}`}>
                     <div className="space-y-6 w-full min-w-[350px]">
-                        <Card className="bg-black border-teal-900/30 shadow-sm border">
-                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30 py-4 flex justify-between flex-row items-center">
+                        <Card className="bg-black border-teal-900/30 shadow-sm">
+                            <CardHeader className="bg-teal-950/20 text-teal-500 rounded-t-lg pb-4 border-b border-teal-900/30">
                                 <CardTitle className="text-lg font-mono uppercase tracking-wider">Product Avatar Setting</CardTitle>
                             </CardHeader>
                             <CardContent className="pt-4 space-y-4">
@@ -489,9 +489,16 @@ export default function ProductAvatarStudio() {
                 {/* Main Dynamic Viewport EXACTLY like symphony/page.tsx */}
                 <div className="flex-1 overflow-y-auto bg-[#0a0a0a] p-6 scrollbar-thin scrollbar-thumb-gray-800">
                     <div className="max-w-[1800px] mx-auto space-y-6">
-                    
+                        {loading && (
+                            <div className="flex flex-col items-center justify-center p-24 text-center space-y-4 shadow-xl">
+                                <Video className="w-12 h-12 text-teal-500 animate-pulse" />
+                                <p className="text-sm text-teal-400 font-mono uppercase tracking-widest text-shadow">TikTok Server Farm Active</p>
+                                <p className="text-gray-500 font-mono tracking-widest text-xs uppercase">&gt; Dispatching Concurrent Node Cluster...</p>
+                            </div>
+                        )}
+
                         {/* Active Jobs Rendering Box */}
-                        {batchJobs.length > 0 && (
+                        {!loading && batchJobs.length > 0 && (
                             <div className="space-y-6">
                                 <div className="flex justify-between items-center mb-4 border-b border-gray-800 pb-4">
                                     <h2 className="text-teal-400 font-mono uppercase tracking-widest text-sm font-bold flex items-center gap-2">
